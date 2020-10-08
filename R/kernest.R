@@ -1,47 +1,49 @@
 # This function calculates the probability in each state at prob.times and the
 # restricted mean time in each state at mu.times.
-# It also calculates either the formula based standard errors and 95% CIs,
-# or the bootstrap versions. (std.err= 'boot' or 'formula')
 
-### TO DO! replace SE with
-# CI which can take values of 'none', 'boot' or 'asymptotic'
-
-# It uses the boundary kernel on the left, but if you set boundary = 'interpolation'
-# it will linearly interpolate from the point (0,1) to (h, \hat r_h(h)).
-
-# The dataset dat should have one row per person with the variables
+# The dataset specified in dat should have one row per person with the variables
 # dtime, dstatus, t1-tm and x1-xm. After the last visit t_ and x_ are NA.
 # x=1 means alive and event free, x=2 means alive with event
 
-### UPDATE: THE OUTPUT IS GOING TO BE A LIST WITH UP TO 2 ELEMENTS
-### result$prob.info and result$mu.info
-### The columns in prob.info will be t, p1, p2, p3,
-### And if CI ='boot' or 'asymptotic':
-### p1.se, p2.se, p3.se, p1.lower, p2.lower, p3.lower, p1.upper, p2.upper, p3.upper
-### And analogous columns for mu.info
-### OLD:
-### The output consists of a matrix with 4 rows and
-### 3*length(prob.times) + 3*length(mu.times) + 3*length(curve.times) columns.
-### The order of the elements in the first row is, for the first
-### 3*length(prob.times) + 3*length(mu.times) estimates,
-### probability or time in state 1,2,3 at each time, then move to the next time.
-### Then for the last 3*length(curve.times), it's probability in state 1 at
-### all times, followed by probability in state 2 at all times, followed by
-### probability in state 3 at all times.
-### The second row contains SE estimate for each element in the first row,
-### except SE is not estimated for curve.times, the 3rd and 4th rows contain
-### lower and upper limits of the 95% confidence interval.
-### If SE = F, the elements in the second, third and fourth row will all be NA.
+# bandwidth specifies the bandwidth to be used for the kernel estimator. This can
+# be selected data-adaptively using the dab() function.
+# tau2
+
+# boundary specifies how kernel estimation is done in the left boundary region.
+# The default is 'boundary.kernel', meaning a boundary kernel is used in the
+# left boundary region, but if you set boundary = 'interpolation',
+# linear interpolation through the points (0,1) and (h, \hat r_h(h))
+# is used to estimate r(t) in the left boundary region.
+
+# kfun can take values of 'epanechnikov','triweight' or 'uniform'
+
+# If std.err= 'asymptotic'  or 'boot', it also calculates the standard errors and 95% CIs using
+# the asymptotic or bootstrap estimators. (std.err= 'none' is the default.)
+# B is the number of bootstrap samples; the default value of B is 50 for the sake
+# of computation time, but we recommend increasing it.
+# If boot.seed is specified, set.seed(boot.seed) will be run before generating bootstrap
+# samples so the samples are reproducible.
+
+# scale is a scaling factor for the restricted mean time in state output. For example.
+# if times are in days and you want the output to reflect restricted mean years in state,
+# set scale = 365.25.
+
+### The output is a list with up to two elements, prob.info for probability in state estimates
+### and mu.info for restricted mean time in state estimates.
+### The columns in prob.info will be t, p1, p2, p3 for time and probability in the three states,
+### and the columns in mu.info will be analogous.
+### If std.err ='boot' or 'asymptotic', additional columns will contain the standard error
+### and lower and upper limits of the 95% confidence interval for each estimate.
 
 ### If incl.dis = T, the output is a LIST with two elements, res and discon.
 ### discon is a vector that gives the integral excluded from the integration
 ### If no interval was excluded, it's c(0,0).
 
-kernel.est <- function(dat, bandwidth,  tau2,
-                       prob.times=NULL, mu.times=NULL,
+kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
                        boundary = 'boundary.kernel', kfun='epanechnikov',
-                       SE=F, std.err='boot', B=500, boot.seed = NA,
+                       std.err='none', B=50, boot.seed = NA,
                        scale=1, incl.discon=F){
+
   if (!is.null(prob.times)) if (all.equal(sort(prob.times),prob.times)!=T) stop('prob.times must be in ascending order.')
   if (!is.null(mu.times)) if (all.equal(sort(mu.times),mu.times)!=T) stop('mu.times must be in ascending order.')
   if (!(boundary %in% c('boundary.kernel','interpolation'))) stop('The only allowable entries for boundary are "boundary.kernel" and "interpolation".')
@@ -60,7 +62,6 @@ kernel.est <- function(dat, bandwidth,  tau2,
   V.all <- V.all[!missing]
   Y.all <- Y.all[!missing]
   ID.all <- ID.all[!missing]
-
   N<-length(X)
 
   #####################################################
@@ -71,21 +72,29 @@ kernel.est <- function(dat, bandwidth,  tau2,
   Right <- c(summary(fit)$time,Inf)
   Value <- c(1,summary(fit)$surv)
 
-  #plot(curve.times,xi(curve.times, bandwidth,V.all, Y.all, N, tau2))
-  #plot(curve.times,lambda(curve.times, bandwidth,V.all, N, tau2))
-  #hist(V.all,breaks = 20)
   #####################################################
   # calculate values at the times of interest
   #####################################################
-  rm.matrix<-NULL
+  if (length(prob.times)>0){
+    prob.matrix<-matrix(NA, nrow = length(prob.times), ncol = 3)
+    prob.matrix[,1]<-f2(prob.times, v.all = V.all, y.all = Y.all, h = bandwidth, N = N, tau2 = tau2, boundary = boundary,
+                        Left=Left, Right= Right, Value=Value)
+    prob.matrix[,3]<-1-sapply(1:length(prob.times), function (x)
+      Sd(prob.times[x], Value, Left, Right))
+    prob.matrix[,2]<-1-prob.matrix[,1]-prob.matrix[,3]
+  }
+
   if (length(mu.times)>0){
+    rm.matrix<-matrix(NA, nrow = length(mu.times), ncol = 3)
+    mu.times2<-c(0, mu.times)
+    rm.diff<-sapply(1:length(mu.times), function(x) int_f2(mu.times2[x], mu.times2[x+1],bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value))
+print(rm.diff)
     if (boundary=='boundary.kernel' & lambda(0, bandwidth, V.all, N,tau2)<0) {
       dis<-uniroot(function (x) lambda(x, bandwidth, V.all, N,tau2),
                    interval = c(0,bandwidth))$root
     }
     else dis<-0
     discon<-c(0,0)
-    rm.matrix<-matrix(NA, nrow = length(mu.times), ncol = 3)
     mu.times2<-c(0, mu.times)
     rm.diff<-rep(NA, length(mu.times))
     for (j in 1:length(mu.times)){
@@ -177,6 +186,9 @@ kernel.est <- function(dat, bandwidth,  tau2,
         rm.diff[j]<-part1+part2
       }
     }
+
+    if (discon[2]!=0 | discon[1]!=0) warning('Due to a discontinuity in hat r_h(t), the interval[', discon[1],',',discon[2],'] was excluded from integration.')
+
     if (discon[2]-discon[1]>mu.times[1]/1000) warning('The interval being excluded from the integration has width>(earliest RM time)/1000')
     discon.to.ret <-  discon
 
@@ -207,23 +219,18 @@ kernel.est <- function(dat, bandwidth,  tau2,
       summary(fit, rmean =mu.times[i], scale =scale, extend = T)$table[5])
     rm.matrix[,2]<-mu.times/scale-rm.matrix[,1]-rm.matrix[,3]
   }
-  prob.matrix<-NULL
-  if (length(prob.times)>0){
-    prob.matrix<-matrix(NA, nrow = length(prob.times), ncol = 3)
-    prob.matrix[,1]<-f2(prob.times, v.all = V.all, y.all = Y.all, h = bandwidth, N = N, tau2 = tau2, boundary = boundary,
-                        Left=Left, Right= Right, Value=Value)
-    prob.matrix[,3]<-1-sapply(1:length(prob.times), function (x)
-      Sd(prob.times[x], Value, Left, Right))
-    prob.matrix[,2]<-1-prob.matrix[,1]-prob.matrix[,3]
-  }
 
-  if (SE == F)  {
-    prob.matrix<-cbind(prob.times/scale, prob.matrix)
-    rm.matrix<-cbind(mu.times/scale, rm.matrix)
-    colnames(prob.matrix)<-c('time','p1','p2','p3')
-    colnames(rm.matrix)<-c('time','mu1','mu2','mu3')
+  if (std.err=='none')  {
+    if (length(prob.times)>0){
+      prob.matrix<-cbind(prob.times/scale, prob.matrix)
+      colnames(prob.matrix)<-c('time','p1','p2','p3')
+    }
+    if (length(mu.times)>0){
+      rm.matrix<-cbind(mu.times/scale, rm.matrix)
+      colnames(rm.matrix)<-c('time','mu1','mu2','mu3')
+    }
   }
-  else if (SE == T & std.err == 'formula'){
+  else if (std.err == 'asymptotic'){
     #####################################################
     # generate longitudinal data
     #####################################################
@@ -308,20 +315,23 @@ kernel.est <- function(dat, bandwidth,  tau2,
     Phi.2 <-  (Phi1.2 + Phi2.2 - Phi3.2)/scale
     Phi3 <- Phi3/scale
 
-    prob.matrix<-cbind(prob.matrix, sqrt(var1)/sqrt(N), sqrt(var2)/sqrt(N), apply(phi3, 2, sd)/sqrt(N))
-    rm.matrix<-cbind(rm.matrix, apply(Phi, 2, sd)/sqrt(N), apply(Phi.2, 2, sd)/sqrt(N), apply(Phi3, 2, sd)/sqrt(N))
-
-    prob.matrix<-cbind(prob.times/scale, prob.matrix, prob.matrix[,1:3]-1.96*prob.matrix[,4:6], prob.matrix[,1:3]+1.96*prob.matrix[,4:6])
-    rm.matrix<-cbind(mu.times/scale, rm.matrix, rm.matrix[,1:3]-1.96*rm.matrix[,4:6], rm.matrix[,1:3]+1.96*rm.matrix[,4:6])
-    colnames(prob.matrix)<-c('time','p1','p2','p3','p1se', 'p2se','p3se',
-                             'p1lower','p2lower','p3lower','p1upper','p2upper','p3upper')
-    colnames(rm.matrix)<-c('time','mu1','mu2','mu3','mu1se', 'mu2se','mu3se',
+    if (length(prob.times)>0){
+      prob.matrix<-cbind(prob.matrix, sqrt(var1)/sqrt(N), sqrt(var2)/sqrt(N), apply(phi3, 2, sd)/sqrt(N))
+      prob.matrix<-cbind(prob.times/scale, prob.matrix, prob.matrix[,1:3]-1.96*prob.matrix[,4:6], prob.matrix[,1:3]+1.96*prob.matrix[,4:6])
+      colnames(prob.matrix)<-c('time','p1','p2','p3','p1se', 'p2se','p3se',
+                               'p1lower','p2lower','p3lower','p1upper','p2upper','p3upper')
+    }
+    if (length(mu.times)>0){
+      rm.matrix<-cbind(rm.matrix, apply(Phi, 2, sd)/sqrt(N), apply(Phi.2, 2, sd)/sqrt(N), apply(Phi3, 2, sd)/sqrt(N))
+      rm.matrix<-cbind(mu.times/scale, rm.matrix, rm.matrix[,1:3]-1.96*rm.matrix[,4:6], rm.matrix[,1:3]+1.96*rm.matrix[,4:6])
+      colnames(rm.matrix)<-c('time','mu1','mu2','mu3','mu1se', 'mu2se','mu3se',
                              'mu1lower','mu2lower','mu3lower','mu1upper','mu2upper','mu3upper')
+    }
   }
 
-  else if (SE == T & std.err == 'boot'){
-    prob.boot<-matrix(NA, nrow = B, ncol = 3*length(prob.times))
-    rm.boot<-matrix(NA, nrow = B, ncol = 3*length(mu.times))
+  else if (std.err == 'boot'){
+    if (length(prob.times)>0) prob.boot<-matrix(NA, nrow = B, ncol = 3*length(prob.times))
+    if (length(mu.times)>0) rm.boot<-matrix(NA, nrow = B, ncol = 3*length(mu.times))
     if(!is.na(boot.seed)) set.seed(boot.seed)
     indices<-matrix(sample(nrow(dat), nrow(dat)*B, replace = T), nrow = B)
     # we only estimate SE for prob.times, mu.times
@@ -352,9 +362,16 @@ kernel.est <- function(dat, bandwidth,  tau2,
       #####################################################
       # calculate values at the times of interest
       #####################################################
-      rm.matrix<-NULL
+      if (length(prob.times)>0){
+        prob.matrix<-matrix(NA, nrow = length(prob.times), ncol = 3)
+        prob.matrix[,1]<-f2(prob.times, v.all = V.all, y.all = Y.all, h = bandwidth, N = N, tau2 = tau2, boundary = boundary,
+                            Left=Left, Right= Right, Value=Value)
+        prob.matrix[,3]<-1-sapply(1:length(prob.times), function (x)
+          Sd(prob.times[x], Value, Left, Right))
+        prob.matrix[,2]<-1-prob.matrix[,1]-prob.matrix[,3]
+        prob.boot[i,]<-t(prob.matrix)
+      }
       if (length(mu.times)>0){
-
         if (boundary=='boundary.kernel' & lambda(0, bandwidth, V.all, N,tau2)<0) {
           dis<-uniroot(function (x) lambda(x, bandwidth, V.all, N,tau2),
                        interval = c(0,bandwidth))$root
@@ -479,46 +496,29 @@ kernel.est <- function(dat, bandwidth,  tau2,
         rm.matrix[,3]<-mu.times/scale-sapply(1:length(mu.times), function(i)
           summary(fit, rmean =mu.times[i], scale =scale, extend = T)$table[5])
         rm.matrix[,2]<-mu.times/scale-rm.matrix[,1]-rm.matrix[,3]
-#        rm.matrix<-t(rm.matrix)
+        rm.boot[i,]<-t(rm.matrix)
       }
-      prob.matrix<-NULL
-      if (length(prob.times)>0){
-        prob.matrix<-matrix(NA, nrow = length(prob.times), ncol = 3)
-        prob.matrix[,1]<-f2(prob.times, v.all = V.all, y.all = Y.all, h = bandwidth, N = N, tau2 = tau2, boundary = boundary,
-                            Left=Left, Right= Right, Value=Value)
-        prob.matrix[,3]<-1-sapply(1:length(prob.times), function (x)
-          Sd(prob.times[x], Value, Left, Right))
-        prob.matrix[,2]<-1-prob.matrix[,1]-prob.matrix[,3]
-#        prob.matrix<-t(prob.matrix)
-      }
-      prob.boot[i,]<-t(prob.matrix)
-      rm.boot[i,]<-t(rm.matrix)
-
-#      bootsam[i,1:se_length]<-c(prob.matrix,rm.matrix)
     }
-    prob.se<-cbind(matrix(apply(prob.boot,2,sd), ncol = 3, byrow = T),
+    if (length(prob.times)>0) {
+      prob.se<-cbind(matrix(apply(prob.boot,2,sd), ncol = 3, byrow = T),
                 matrix(apply(prob.boot,2,function(x) quantile(x,probs = 0.025,na.rm = T)), ncol=3, byrow = T),
                 matrix(apply(prob.boot,2,function(x) quantile(x,probs = 0.975,na.rm = T)), ncol=3, byrow = T))
-    rm.se<-cbind(matrix(apply(rm.boot,2,sd), ncol = 3, byrow = T),
+      prob.matrix<-cbind(prob.times/scale, prob.matrix, prob.se)
+      colnames(prob.matrix)<-c('time','p1','p2','p3','p1se', 'p2se','p3se',
+                               'p1lower','p2lower','p3lower','p1upper','p2upper','p3upper')
+    }
+    if (length(mu.times)>0) {
+      rm.se<-cbind(matrix(apply(rm.boot,2,sd), ncol = 3, byrow = T),
                 matrix(apply(rm.boot,2,function(x) quantile(x,probs = 0.025,na.rm = T)), ncol=3, byrow = T),
                 matrix(apply(rm.boot,2,function(x) quantile(x,probs = 0.975,na.rm = T)), ncol=3, byrow = T))
-
-    #    res<-rbind(res,apply(bootsam,2,sd),
-#               apply(bootsam,2,function(x) quantile(x,probs = 0.025,na.rm = T)),
-#               apply(bootsam,2,function(x) quantile(x,probs = 0.975, na.rm = T)))
-
-    prob.matrix<-cbind(prob.times/scale, prob.matrix, prob.se)
-    rm.matrix<-cbind(mu.times/scale, rm.matrix, rm.se)
-
-    colnames(prob.matrix)<-c('time','p1','p2','p3','p1se', 'p2se','p3se',
-                             'p1lower','p2lower','p3lower','p1upper','p2upper','p3upper')
-    colnames(rm.matrix)<-c('time','mu1','mu2','mu3','mu1se', 'mu2se','mu3se',
+      rm.matrix<-cbind(mu.times/scale, rm.matrix, rm.se)
+      colnames(rm.matrix)<-c('time','mu1','mu2','mu3','mu1se', 'mu2se','mu3se',
                            'mu1lower','mu2lower','mu3lower','mu1upper','mu2upper','mu3upper')
+    }
   }
-
-  if (incl.discon==T) return(list(prob.info = prob.matrix,
-                                  mu.info =rm.matrix, discon = discon.to.ret))
-  else return(list(prob.info = prob.matrix, mu.info =rm.matrix))
+  if (!is.null(prob.times)&!is.null(mu.times)) return(list(prob.info = prob.matrix, mu.info =rm.matrix))
+  else if(!is.null(prob.times)) return(list(prob.info = prob.matrix))
+  else if(!is.null(mu.times)) return(list(mu.info = rm.matrix))
 }
 
 
