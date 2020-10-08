@@ -72,7 +72,7 @@ f2 <- function(v,h,v.all,y.all,N,tau2, boundary, Left, Right, Value)
   sd.all*rh.all
 }
 
-int_f2<-function(lower, upper, bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value){
+int_f2<-function(lower, upper, bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value, warn = T){
   if (boundary =='interpolation' | lower>bandwidth|
       lambda(lower, bandwidth, V.all, N,tau2)>=0|lambda(upper, bandwidth, V.all, N,tau2)<0){
     return(integral(f2, xmin = lower, xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
@@ -88,17 +88,17 @@ int_f2<-function(lower, upper, bandwidth, V.all,Y.all,N,tau2, boundary, Left, Ri
            reltol = 1e-5), "try-error")){
     leftpow <- leftpow+1
   }
-  while (inherits(integral(f2, xmin =dis+10^(leftpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+  while (inherits(integral(f2, xmin =dis+10^(rightpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
                            tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
                            reltol = 1e-5), "try-error")){
     rightpow <- rightpow+1
   }
-  warning('Due to a discontinuity in hat r_h(t), the interval[', dis-10^(leftpow),',',dis+10^(rightpow),'] was excluded from integration.')
+  if (warn == T) warning('Due to a discontinuity in hat r_h(t), the interval[', dis-10^(leftpow),',',dis+10^(rightpow),'] was excluded from integration.')
 
-  return(integral(f2, xmin = dis+10^(leftpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+  return(integral(f2, xmin = lower, xmax = dis-10^(leftpow), v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
                   tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
                   reltol = 1e-5)+
-          integral(f2, xmin = mu.times2[j], xmax = dis, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+          integral(f2, xmin = dis+10^(rightpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
            tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
            reltol = 1e-5))
 }

@@ -35,22 +35,16 @@
 ### If std.err ='boot' or 'asymptotic', additional columns will contain the standard error
 ### and lower and upper limits of the 95% confidence interval for each estimate.
 
-### If incl.dis = T, the output is a LIST with two elements, res and discon.
-### discon is a vector that gives the integral excluded from the integration
-### If no interval was excluded, it's c(0,0).
-
 kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
                        boundary = 'boundary.kernel', kfun='epanechnikov',
                        std.err='none', B=50, boot.seed = NA,
-                       scale=1, incl.discon=F){
+                       scale=1){
 
   if (!is.null(prob.times)) if (all.equal(sort(prob.times),prob.times)!=T) stop('prob.times must be in ascending order.')
   if (!is.null(mu.times)) if (all.equal(sort(mu.times),mu.times)!=T) stop('mu.times must be in ascending order.')
   if (!(boundary %in% c('boundary.kernel','interpolation'))) stop('The only allowable entries for boundary are "boundary.kernel" and "interpolation".')
 
-  if(is.null(mu.times) & incl.discon==T) stop('No integration is done; incl.discon must be F.')
-
-  # Prep data for Yifei's method
+  # Prep data
   nvisits<-dat$nvisits[1]
   ID<- 1:nrow(dat)
   X <- dat$dtime
@@ -88,132 +82,6 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
     rm.matrix<-matrix(NA, nrow = length(mu.times), ncol = 3)
     mu.times2<-c(0, mu.times)
     rm.diff<-sapply(1:length(mu.times), function(x) int_f2(mu.times2[x], mu.times2[x+1],bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value))
-print(rm.diff)
-    if (boundary=='boundary.kernel' & lambda(0, bandwidth, V.all, N,tau2)<0) {
-      dis<-uniroot(function (x) lambda(x, bandwidth, V.all, N,tau2),
-                   interval = c(0,bandwidth))$root
-    }
-    else dis<-0
-    discon<-c(0,0)
-    mu.times2<-c(0, mu.times)
-    rm.diff<-rep(NA, length(mu.times))
-    for (j in 1:length(mu.times)){
-      if (dis<=mu.times2[j] | dis>=mu.times2[j+1] ) rm.diff[j]<-integral(f2, xmin = mu.times2[j], xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                                                         tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                                                         reltol = 1e-5)
-      else {
-        part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                            tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                            reltol = 1e-5))
-        discon[1]<-dis
-        if (inherits(part1, "try-error")){
-          part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis-1e-5, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                              reltol = 1e-5))
-          discon[1]<-dis-1e-5
-        }
-        if (inherits(part1, "try-error")){
-          part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis-1e-4, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                              reltol = 1e-5))
-          discon[1]<-dis-1e-4
-        }
-        if (inherits(part1, "try-error")){
-          part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis-1e-3, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                              reltol = 1e-5))
-          discon[1]<-dis-1e-3
-        }
-        if (inherits(part1, "try-error")){
-          part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis-1e-2, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                              reltol = 1e-5))
-          discon[1]<-dis-1e-2
-        }
-        if (inherits(part1, "try-error")){
-          part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis-1e-1, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                              reltol = 1e-5))
-          discon[1]<-dis-1e-1
-        }
-        if (inherits(part1, "try-error")){
-          part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis-1, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                              reltol = 1e-5))
-          discon[1]<-dis-1
-        }
-
-        part2<-try(integral(f2, xmin = dis, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                            tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                            reltol = 1e-5))
-        discon[2]<-dis
-        if (inherits(part2, "try-error")){
-          part2<-try(integral(f2, xmin = dis+1e-5, xmax =mu.times2[j+1] , v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                              reltol = 1e-5))
-          discon[2]<-dis+1e-5
-        }
-        if (inherits(part2, "try-error")){
-          part2<-try(integral(f2, xmin = dis+1e-4, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                              reltol = 1e-5))
-          discon[2]<-dis+1e-4
-        }
-        if (inherits(part2, "try-error")){
-          part2<-try(integral(f2, xmin = dis+1e-3, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                              reltol = 1e-5))
-          discon[2]<-dis+1e-3
-        }
-        if (inherits(part2, "try-error")){
-          part2<-try(integral(f2, xmin = dis+1e-2, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                              reltol = 1e-5))
-          discon[2]<-dis+1e-2
-        }
-        if (inherits(part2, "try-error")){
-          part2<-try(integral(f2, xmin = dis+1e-1, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                              reltol = 1e-5))
-          discon[2]<-dis+1e-1
-        }
-        if (inherits(part2, "try-error")){
-          part2<-try(integral(f2, xmin = dis+1, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                              reltol = 1e-5))
-          discon[2]<-dis+1
-        }
-        rm.diff[j]<-part1+part2
-      }
-    }
-
-    if (discon[2]!=0 | discon[1]!=0) warning('Due to a discontinuity in hat r_h(t), the interval[', discon[1],',',discon[2],'] was excluded from integration.')
-
-    if (discon[2]-discon[1]>mu.times[1]/1000) warning('The interval being excluded from the integration has width>(earliest RM time)/1000')
-    discon.to.ret <-  discon
-
-    #   discon<-c(0,0)
-    #   if (boundary=='boundary.kernel' & xi(0, bandwidth, V.all, Y.all, N,tau2)<0) {
-    #       discon[1]<- uniroot(function (x) xi(x, bandwidth, V.all, Y.all, N,tau2),
-    #                        interval = c(0,bandwidth))$root
-    #       discon[2]<-uniroot(function (x) lambda(x, bandwidth, V.all, N,tau2),
-    #                        interval = c(0,bandwidth))$root
-    #       discon<-sort(discon)
-    #       if (discon[2]-discon[1]>mu.times[1]/200) warning('The interval being excluded from the integration has width>(earliest RM time)/200')
-    #       discon.to.ret <-  discon
-    #   }
-    #   rm.matrix<-matrix(NA, nrow = length(mu.times), ncol = 3)
-    #   mu.times2<-c(0, mu.times)
-    #   rm.diff<-sapply(1:length(mu.times), function(j)
-    #       if (discon[2]<=mu.times2[j] | discon[1]>=mu.times2[j+1] ) integral(f2, xmin = mu.times2[j], xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-    #                tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-    #                reltol = 1e-5)
-    #       else integral(f2, xmin = mu.times2[j], xmax = discon[1]-1e-4, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-    #                     tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-    #                     reltol = 1e-5)+
-    #            integral(f2, xmin = discon[2]+1e-4, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-    #             tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-    #             reltol = 1e-5))
     rm.matrix[,1]<-cumsum(rm.diff)/scale
     rm.matrix[,3]<-mu.times/scale-sapply(1:length(mu.times), function(i)
       summary(fit, rmean =mu.times[i], scale =scale, extend = T)$table[5])
@@ -245,7 +113,6 @@ print(rm.diff)
     #####################################################
     # calculate mu, S_X at terminal time
     #####################################################
-
     sx2.all <- rep(0,N)
     for(i in 1:N)
     {
@@ -269,8 +136,7 @@ print(rm.diff)
     Phi1.1<-Phi2.1<-Phi3.1<-matrix(NA, nrow = N, ncol = length(mu.times))
     Phi1.2<-Phi2.2<-Phi3.2<-matrix(NA, nrow = N, ncol = length(mu.times))
     Phi3<-matrix(NA, nrow = N, ncol = length(mu.times))
-    phi1<-phi2<-phi3<-matrix(NA, nrow = N, ncol = length(prob.times))
-    var1<-var2<-rep(NA, length(prob.times))
+    phi3<-matrix(NA, nrow = N, ncol = length(prob.times))
     for(i in 1:N)
     {
       V.i <- V.all[ID.all == i]
@@ -306,17 +172,18 @@ print(rm.diff)
         for (j in 1:length(prob.times)){
           phi3[i,j]<- -Sd(prob.times[j], Value, Left, Right)*(sum(1/(sx2.all[X<X[i] & X<prob.times[j] & E == TRUE])^2)/N - (1/sx2.all[i])*(X[i]<prob.times[j] & E[i] == 1))
         }
-        # variance of sqrt(n)*(prob in state 1). Same as state 2.
-        var1 <- (3/5*((1-prob.matrix[,3])*prob.matrix[,1]-prob.matrix[,1]^2)/lambda(prob.times,bandwidth, V.all, N, tau2 = tau2))/bandwidth
-        var2 <- var1
       }
     }
+
     Phi <-  (Phi1.1 + Phi2.1 - Phi3.1)/scale
     Phi.2 <-  (Phi1.2 + Phi2.2 - Phi3.2)/scale
     Phi3 <- Phi3/scale
 
     if (length(prob.times)>0){
-      prob.matrix<-cbind(prob.matrix, sqrt(var1)/sqrt(N), sqrt(var2)/sqrt(N), apply(phi3, 2, sd)/sqrt(N))
+      # variance of sqrt(n)*(prob in state 1). Same as state 2.
+      var1 <- (3/5*((1-prob.matrix[,3])*prob.matrix[,1]-prob.matrix[,1]^2)/lambda(prob.times,bandwidth, V.all, N, tau2 = tau2))/bandwidth
+
+      prob.matrix<-cbind(prob.matrix, sqrt(var1)/sqrt(N), sqrt(var1)/sqrt(N), apply(phi3, 2, sd)/sqrt(N))
       prob.matrix<-cbind(prob.times/scale, prob.matrix, prob.matrix[,1:3]-1.96*prob.matrix[,4:6], prob.matrix[,1:3]+1.96*prob.matrix[,4:6])
       colnames(prob.matrix)<-c('time','p1','p2','p3','p1se', 'p2se','p3se',
                                'p1lower','p2lower','p3lower','p1upper','p2upper','p3upper')
@@ -334,10 +201,10 @@ print(rm.diff)
     if (length(mu.times)>0) rm.boot<-matrix(NA, nrow = B, ncol = 3*length(mu.times))
     if(!is.na(boot.seed)) set.seed(boot.seed)
     indices<-matrix(sample(nrow(dat), nrow(dat)*B, replace = T), nrow = B)
-    # we only estimate SE for prob.times, mu.times
+
     for (i in 1:B) {
       dat.bs <- dat[indices[i,],]
-      # Prep data for Yifei's method
+      # Prep data
       nvisits<-dat.bs$nvisits[1]
       ID<- 1:nrow(dat.bs)
       X <- dat.bs$dtime
@@ -349,8 +216,8 @@ print(rm.diff)
       V.all <- V.all[!missing]
       Y.all <- Y.all[!missing]
       ID.all <- ID.all[!missing]
-
       N<-length(X)
+
       #####################################################
       # generate survival data
       #####################################################
@@ -363,140 +230,23 @@ print(rm.diff)
       # calculate values at the times of interest
       #####################################################
       if (length(prob.times)>0){
-        prob.matrix<-matrix(NA, nrow = length(prob.times), ncol = 3)
-        prob.matrix[,1]<-f2(prob.times, v.all = V.all, y.all = Y.all, h = bandwidth, N = N, tau2 = tau2, boundary = boundary,
+        prob.matrix.boot<-matrix(NA, nrow = length(prob.times), ncol = 3)
+        prob.matrix.boot[,1]<-f2(prob.times, v.all = V.all, y.all = Y.all, h = bandwidth, N = N, tau2 = tau2, boundary = boundary,
                             Left=Left, Right= Right, Value=Value)
-        prob.matrix[,3]<-1-sapply(1:length(prob.times), function (x)
+        prob.matrix.boot[,3]<-1-sapply(1:length(prob.times), function (x)
           Sd(prob.times[x], Value, Left, Right))
-        prob.matrix[,2]<-1-prob.matrix[,1]-prob.matrix[,3]
-        prob.boot[i,]<-t(prob.matrix)
+        prob.matrix.boot[,2]<-1-prob.matrix.boot[,1]-prob.matrix.boot[,3]
+        prob.boot[i,]<-t(prob.matrix.boot)
       }
       if (length(mu.times)>0){
-        if (boundary=='boundary.kernel' & lambda(0, bandwidth, V.all, N,tau2)<0) {
-          dis<-uniroot(function (x) lambda(x, bandwidth, V.all, N,tau2),
-                       interval = c(0,bandwidth))$root
-        }
-        else dis<-0
-        discon<-c(0,0)
-        rm.matrix<-matrix(NA, nrow = length(mu.times), ncol = 3)
+        rm.matrix.boot<-matrix(NA, nrow = length(mu.times), ncol = 3)
         mu.times2<-c(0, mu.times)
-        rm.diff<-rep(NA, length(mu.times))
-        for (j in 1:length(mu.times)){
-          if (dis<=mu.times2[j] | dis>=mu.times2[j+1] ) rm.diff[j]<-integral(f2, xmin = mu.times2[j], xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                                                             tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                                                             reltol = 1e-5)
-          else {
-            part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                reltol = 1e-5))
-            discon[1]<-dis
-            if (inherits(part1, "try-error")){
-              part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis-1e-5, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                  reltol = 1e-5))
-              discon[1]<-dis-1e-5
-            }
-            if (inherits(part1, "try-error")){
-              part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis-1e-4, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                  reltol = 1e-5))
-              discon[1]<-dis-1e-4
-            }
-            if (inherits(part1, "try-error")){
-              part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis-1e-3, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                  reltol = 1e-5))
-              discon[1]<-dis-1e-3
-            }
-            if (inherits(part1, "try-error")){
-              part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis-1e-2, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                  reltol = 1e-5))
-              discon[1]<-dis-1e-2
-            }
-            if (inherits(part1, "try-error")){
-              part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis-1e-1, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                  reltol = 1e-5))
-              discon[1]<-dis-1e-1
-            }
-            if (inherits(part1, "try-error")){
-              part1<-try(integral(f2, xmin = mu.times2[j], xmax = dis-1, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                  reltol = 1e-5))
-              discon[1]<-dis-1
-            }
-
-            part2<-try(integral(f2, xmin = dis, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                reltol = 1e-5))
-            discon[2]<-dis
-            if (inherits(part2, "try-error")){
-              part2<-try(integral(f2, xmin = dis+1e-5, xmax =mu.times2[j+1] , v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                  reltol = 1e-5))
-              discon[2]<-dis+1e-5
-            }
-            if (inherits(part2, "try-error")){
-              part2<-try(integral(f2, xmin = dis+1e-4, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                  reltol = 1e-5))
-              discon[2]<-dis+1e-4
-            }
-            if (inherits(part2, "try-error")){
-              part2<-try(integral(f2, xmin = dis+1e-3, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                  reltol = 1e-5))
-              discon[2]<-dis+1e-3
-            }
-            if (inherits(part2, "try-error")){
-              part2<-try(integral(f2, xmin = dis+1e-2, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                  reltol = 1e-5))
-              discon[2]<-dis+1e-2
-            }
-            if (inherits(part2, "try-error")){
-              part2<-try(integral(f2, xmin = dis+1e-1, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                  reltol = 1e-5))
-              discon[2]<-dis+1e-1
-            }
-            if (inherits(part2, "try-error")){
-              part2<-try(integral(f2, xmin = dis+1, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                                  reltol = 1e-5))
-              discon[2]<-dis+1
-            }
-
-            rm.diff[j]<-part1+part2
-          }
-        }
-
-        #discon<-c(0,0)
-        #if (boundary=='boundary.kernel' & xi(0, bandwidth, V.all, Y.all, N,tau2)<0) {
-        #    discon[1]<- uniroot(function (x) xi(x, bandwidth, V.all, Y.all, N,tau2),
-        #                        interval = c(0,bandwidth))$root
-        #    discon[2]<-uniroot(function (x) lambda(x, bandwidth, V.all, N,tau2),
-        #                       interval = c(0,bandwidth))$root
-        #    discon<-sort(discon)
-        #}
-        #rm.matrix<-matrix(NA, nrow = length(mu.times), ncol = 3)
-        #mu.times2<-c(0, mu.times)
-        #rm.diff<-sapply(1:length(mu.times), function(j)
-        #    if (discon[2]<=mu.times2[j] | discon[1]>=mu.times2[j+1] ) integral(f2, xmin = mu.times2[j], xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-        #                tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-        #                reltol = 1e-5)
-        #    else integral(f2, xmin = mu.times2[j], xmax = discon[1]-1e-4, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-        #                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-        #                  reltol = 1e-5)+
-        #        integral(f2, xmin = discon[2]+1e-4, xmax = mu.times2[j+1], v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-        #                 tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-        #                 reltol = 1e-5))
-        rm.matrix[,1]<-cumsum(rm.diff)/scale
-        rm.matrix[,3]<-mu.times/scale-sapply(1:length(mu.times), function(i)
+        rm.diff<-sapply(1:length(mu.times), function(x) int_f2(mu.times2[x], mu.times2[x+1],bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value, warn = F))
+        rm.matrix.boot[,1]<-cumsum(rm.diff)/scale
+        rm.matrix.boot[,3]<-mu.times/scale-sapply(1:length(mu.times), function(i)
           summary(fit, rmean =mu.times[i], scale =scale, extend = T)$table[5])
-        rm.matrix[,2]<-mu.times/scale-rm.matrix[,1]-rm.matrix[,3]
-        rm.boot[i,]<-t(rm.matrix)
+        rm.matrix.boot[,2]<-mu.times/scale-rm.matrix.boot[,1]-rm.matrix.boot[,3]
+        rm.boot[i,]<-t(rm.matrix.boot)
       }
     }
     if (length(prob.times)>0) {
