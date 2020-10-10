@@ -1,16 +1,5 @@
-##### Implements the kernel method with the boundary kernel of Muller 1991 on the LEFT ONLY.
-
-Kq <- function(x, q) {
-  sigk1 <- sqrt(0.2)
-  2 / (q + 1) * K1(2 / (q + 1) * (x - (q - 1) / 2)) *
-    (1 + ((q - 1) / (q + 1) / sigk1) ^ 2 + 2 / sigk1 ^ 2 * (1 - q) / (1 + q) ^ 2 * x)
-}
-
-K1 <- function(u) {
-  0.75 * (1 - u ^ 2) * (abs(u) < 1)
-}
-
-K.unif<-function(u,x,b){ # implements the left boundary ONLY
+K.unif<-function(u,x,b){
+  # Implements the kernel method with the boundary kernel of Muller 1991 on the LEFT ONLY.
   #    if (b<=x & x<=(1-b)) return(K1((x-u)/b))
   if (b<=x) return(K1((x-u)/b))
   if (b>x) return(Kq((x-u)/b, x/b))
@@ -103,15 +92,13 @@ int_f2<-function(lower, upper, bandwidth, V.all,Y.all,N,tau2, boundary, Left, Ri
            reltol = 1e-5))
 }
 
-
-######## dab function
-### Stands for Data Adapative Bandwidth and it finds the bandwidth using the
-### method described in Sun, Huang and Wang 2017
 dab<-function(lower, upper, V.all, Y.all, ID.all, tau, tau2, length.out = 5000){
-  # Find h hat that minimizes cross validation error. If you use a first-order kernel, the
-  # resulting h hat satisfies the regularity condition in Sun, Huang and Wang 2017.
-  # The resulting h hat can then be used in the estimator, with the kernel of your choice.
-  # (We've used the Epanechnikov kernel and the boundary kernel extension of Epanechnikov).
+  ### This function searches a grid from lower to upper to find the bandwidth that
+  ### minimizes cross validation error (see Sun, Huang and Wang 2017).
+  ### Because we use a first-order kernel, the resulting h hat satisfies the
+  ### regularity condition in Sun, Huang and Wang 2017, i.e. it is on the order
+  ### of n^(-1/3). You can multiply by n^(1/24) to get a bandwidth on the order
+  ### of n^(-7/24), our recommendation.
 
   hhh <- seq(from = lower, to = upper, length.out = length.out)
   UCV.nw <- hhh
@@ -125,7 +112,6 @@ dab<-function(lower, upper, V.all, Y.all, ID.all, tau, tau2, length.out = 5000){
   return(hh1)
 }
 
-###### dab calls the mLeaveone function (originally from Yifei's data.R file)
 mLeaveone <- function(v,id,h,v.all,y.all,id.all, tau2)
 {
   K.unif <- function(v,h)

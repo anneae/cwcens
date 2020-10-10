@@ -1,11 +1,19 @@
 Package: cwcens
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Estimation for Component-Wise Censored Data from an Illness-Death Model
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Author: Anne Eaton
+Maintainer: Anne Eaton <eato0055@umn.edu>
+Description: This pacakage implements non-parametric estimation via a kernel estimator 
+  for the probability in state and restricted mean time in state in an illness-death 
+  model under component-wise censoring. Component-wise censoring arises when
+  illness can only be measured at a finite set of times, while death is right 
+  censored and thus observed continuously up to the right censoring time. Component-wise 
+  censored composite endpoints arise often in biostatistical practice. For example, 
+  in many oncology studies, progression-free survival is component-wise censored. 
+Depends:
+    msm (>= 1.6.8)
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
+RoxygenNote: 7.1.1

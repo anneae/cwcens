@@ -2,8 +2,9 @@
 # restricted mean time in each state at mu.times.
 
 # The dataset specified in dat should have one row per person with the variables
-# dtime, dstatus, t1-tm and x1-xm. After the last visit t_ and x_ are NA.
-# x=1 means alive and event free, x=2 means alive with event
+# dtime, dstatus, t1-tm and x1-xm. After the last visit, t_ and x_ are NA.
+# x=1 means alive and event free (state 1 in a multistate illness-death model),
+# and x=2 means alive with event.
 
 # bandwidth specifies the bandwidth to be used for the kernel estimator. This can
 # be selected data-adaptively using the dab() function.
@@ -35,6 +36,24 @@
 ### If std.err ='boot' or 'asymptotic', additional columns will contain the standard error
 ### and lower and upper limits of the 95% confidence interval for each estimate.
 
+#' Title
+#'
+#' @param dat
+#' @param bandwidth
+#' @param tau2
+#' @param prob.times
+#' @param mu.times
+#' @param boundary
+#' @param kfun
+#' @param std.err
+#' @param B
+#' @param boot.seed
+#' @param scale
+#'
+#' @return
+#' @export
+#'
+#' @examples
 kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
                        boundary = 'boundary.kernel', kfun='epanechnikov',
                        std.err='none', B=50, boot.seed = NA,
@@ -43,6 +62,31 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
   if (!is.null(prob.times)) if (all.equal(sort(prob.times),prob.times)!=T) stop('prob.times must be in ascending order.')
   if (!is.null(mu.times)) if (all.equal(sort(mu.times),mu.times)!=T) stop('mu.times must be in ascending order.')
   if (!(boundary %in% c('boundary.kernel','interpolation'))) stop('The only allowable entries for boundary are "boundary.kernel" and "interpolation".')
+
+  if (kfun == 'epanechnikov') {
+    Kq <<- function(x, q) {
+      sigk1 <- sqrt(0.2)
+      2 / (q + 1) * K1(2 / (q + 1) * (x - (q - 1) / 2)) *
+        (1 + ((q - 1) / (q + 1) / sigk1) ^ 2 + 2 / sigk1 ^ 2 * (1 - q) / (1 + q) ^ 2 * x)
+      # Could also use  6*(1+x)*(q-x)*((1+q)^(-3))*(1+5*((1-q)/(1+q))^2+10*(1-q)*((1+q)^(-2))*x)
+      # Equivalent when x<=q which is the only time we'd use it!
+    }
+    K1 <<- function(u) {
+      0.75 * (1 - u ^ 2) * (abs(u) < 1)
+    }
+  }
+  else if (kfun == 'uniform') {
+    Kq <<- function(x, q) {
+      (1+q)^(-1)*(1+3*((1-q)/(1+q))^2+6*(1-q)*(1+q)^(-2)*x)
+    }
+    K1 <<- function(u) 0.5* (abs(u) < 1)
+  }
+  else if (kfun == 'triweight'){
+    Kq <<- function(x, q) {
+      30*(1+x)^2*(q-x)^2*(1+q)^(-5)*(1+7*((1-q)/(1+q))^2+14*(1-q)*((1+q)^(-2))*x)
+    }
+    K1 <<- function(u) (15/16)*(1-u^2)^2 * (abs(u) < 1)
+  }
 
   # Prep data
   nvisits<-dat$nvisits[1]
@@ -270,56 +314,3 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
   else if(!is.null(prob.times)) return(list(prob.info = prob.matrix))
   else if(!is.null(mu.times)) return(list(mu.info = rm.matrix))
 }
-
-
-################ ################ ################
-################ EXAMPLES
-################ ################ ################
-#source('~/Dropbox/Ann Eaton PhD research not shared/RMST/computing code/cwcens/R/internal_fns.R')
-#source('~/Dropbox/Ann Eaton PhD research not shared/RMST/computing code/cwcens/R/simdat.R')
-#library(msm); library(pracma); library(survival)
-
-# Plot estimates from two visit processes
-#dat<-simdat(55, visit.schedule = 30.4*c(12,24,36,48,60), vital.lfu = c(30.4*66, 30.4*78))
-#test<-kernel.est(dat, 12*30.4, NULL, NULL, 1:1200, T, std.err = 'formula',
-#                 tau2 = 78*30.4, scale = 12*30.4, boundary = 'interpolation')
-#plot(1:1200, test[1,1:1200])
-#dat<-simdat(55, visit.schedule = NA, visitrate = function(x) sapply(x, function(t) 1/365.25),
-#            vital.lfu = c(30.4*66, 30.4*78))
-#test<-kernel.est(dat, 12*30.4, NULL, NULL, 1:1200, T, std.err = 'formula',
-#                 tau2 = 78*30.4, scale = 12*30.4, boundary = 'interpolation')
-#plot(1:1200, test[1,1:1200])
-
-# Estimate RMST with boundary kernel and formula
-#test<-kernel.est(dat, 12*30.4, c(1, 12*30.4, 60*30.4), 12*30.4, 1:5, T, std.err = 'formula',
-#                 tau2 = 78*30.4, scale = 12*30.4)
-# Estimate RMST with interpolation and bootstrap
-#test<-kernel.est(dat, 12*30.4, c(1, 12*30.4, 60*30.4), 12*30.4, 1:5, T, boundary = 'interpolation',
-#                 std.err = 'boot',
-#                 tau2 = 78*30.4, scale = 12*30.4, B=500)
-
-# normal visit results - compare to old results
-# to check whether boundary kernel gives reasonable results
-# and whether formula based results are reasonable
-#start<-Sys.time()
-#set.seed(22)
-#M<-500
-#simres.formula<-matrix(NA, ncol = 6*4, nrow = M)
-#for (m in 1:M){
-#    dat<-simdat(m, visit.schedule = 30.4*c(12,24,36,48,60), vital.lfu = c(30.4*66, 30.4*78))
-#    simres.formula[m,]<-t(kernel.est(dat, 12*30.4, 5*12*30.4, 5*12*30.4, NULL, T, std.err = 'formula',
-#                     tau2 = 78*30.4, scale = 12*30.4))
-#}
-#print(Sys.time()-start)
-## Time difference of 24.32166 mins
-
-#start<-Sys.time()
-#set.seed(22)
-#M<-3
-#simres<-matrix(NA, ncol = 6*4, nrow = M)
-#for (m in 1:M){
-#    dat<-simdat(sample(-2^25:2^25,1), visit.schedule = 30.4*c(12,24,36,48,60), vital.lfu = c(30.4*66, 30.4*78))
-#    simres[m,]<-t(kernel.est(dat, 12*30.4, 5*12*30.4, 5*12*30.4, NULL, T, std.err = 'boot',
-#                             tau2 = 78*30.4, scale = 12*30.4, B=500))
-#}
-#print(Sys.time()-start)
