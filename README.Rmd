@@ -1,0 +1,60 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# cwcens
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+This pacakage implements non-parametric estimation via a kernel estimator 
+for the probability in state and restricted mean time in state in an illness-death 
+model under component-wise censoring. Component-wise censoring arises when
+illness can only be measured at a finite set of times, while death is right 
+censored and thus observed continuously up to the right censoring time. Component-wise 
+censored composite endpoints arise often in biostatistical practice. For example, 
+in many oncology studies, progression-free survival is component-wise censored. 
+
+## Installation
+
+You can install the development version of cwcens from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("anneae/cwcens")
+```
+## Example
+
+This is a basic example which shows you how to solve a common problem:
+
+```{r example}
+library(cwcens)
+## basic example code
+```
+
+What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
+
+```{r cars}
+summary(cars)
+```
+
+You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date.
+
+You can also embed plots, for example:
+
+```{r pressure, echo = FALSE}
+plot(pressure)
+```
+
+In that case, don't forget to commit and push the resulting figure files, so they display on GitHub!
