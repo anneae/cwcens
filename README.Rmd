@@ -36,12 +36,24 @@ devtools::install_github("anneae/cwcens")
 ```
 ## Example
 
-This is a basic example which shows you how to solve a common problem:
+First, we will simulate data from an illness-death model. Our dataset will contain
+150 patients. Since `scale21` is 
+
 
 ```{r example}
 library(cwcens)
-## basic example code
+simdat(150, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
+       scale21=1/.0008,
+       vital.lfu=c(30.4*36, 30.4*48),
+       visit.schedule = 30.4*c(6, 12, 18, 24, 30, 36, 42, 48),
+       scatter.sd=10)
 ```
+
+
+The standard approach would ...
+
+The kernel approach does not ...
+
 
 What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
 

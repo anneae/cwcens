@@ -74,7 +74,10 @@ and \code{mu.info} if \code{mu.times} was non-null. \code{prob.info} contains
  The columns in \code{mu.info} are analogous.
 }
 \description{
-This function implements the
+This function implements the non-parametric kernel estimator of the probability
+in state and restricted mean time in state in an
+illness-death model with component-wise censoring, based on the method of
+Sun, Huang and Wang (2020).
 }
 \examples{
 mydat <- simdat(50, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
