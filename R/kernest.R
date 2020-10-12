@@ -1,63 +1,63 @@
-# This function calculates the probability in each state at prob.times and the
-# restricted mean time in each state at mu.times.
-
-# The dataset specified in dat should have one row per person with the variables
-# dtime, dstatus, t1-tm and x1-xm. After the last visit, t_ and x_ are NA.
-# x=1 means alive and event free (state 1 in a multistate illness-death model),
-# and x=2 means alive with event.
-
-# bandwidth specifies the bandwidth to be used for the kernel estimator. This can
-# be selected data-adaptively using the dab() function.
-# tau2
-
-# boundary specifies how kernel estimation is done in the left boundary region.
-# The default is 'boundary.kernel', meaning a boundary kernel is used in the
-# left boundary region, but if you set boundary = 'interpolation',
-# linear interpolation through the points (0,1) and (h, \hat r_h(h))
-# is used to estimate r(t) in the left boundary region.
-
-# kfun can take values of 'epanechnikov','triweight' or 'uniform'
-
-# If std.err= 'asymptotic'  or 'boot', it also calculates the standard errors and 95% CIs using
-# the asymptotic or bootstrap estimators. (std.err= 'none' is the default.)
-# B is the number of bootstrap samples; the default value of B is 50 for the sake
-# of computation time, but we recommend increasing it.
-# If boot.seed is specified, set.seed(boot.seed) will be run before generating bootstrap
-# samples so the samples are reproducible.
-
-# scale is a scaling factor for the restricted mean time in state output. For example.
-# if times are in days and you want the output to reflect restricted mean years in state,
-# set scale = 365.25.
-
-### The output is a list with up to two elements, prob.info for probability in state estimates
-### and mu.info for restricted mean time in state estimates.
-### The columns in prob.info will be t, p1, p2, p3 for time and probability in the three states,
-### and the columns in mu.info will be analogous.
-### If std.err ='boot' or 'asymptotic', additional columns will contain the standard error
-### and lower and upper limits of the 95% confidence interval for each estimate.
-
-#' Title
+#' Estimate the probability in state and restricted mean time in an illness-death
+#' model with component-wise censoring
 #'
-#' @param dat
-#' @param bandwidth
-#' @param tau2
-#' @param prob.times
-#' @param mu.times
-#' @param boundary
-#' @param kfun
-#' @param std.err
-#' @param B
-#' @param boot.seed
-#' @param scale
+#'This function implements the
 #'
-#' @return
+#' @param dat a dataframe with one row per individual with the variables
+#' \code{t1-tm} and \code{x1-xm} where \code{m}
+#' is the number of visits and \code{ti} and \code{xi} are the time and status at
+#' each visit, and the variables \code{dtime} and \code{dstatus} which are the time
+#' and event indicator for death, and the variable \code{nvisits} is the number of visits.
+#' \code{xi=1} represents alive and event free
+#' (state 1 in a multistate illness-death model), and \code{xi=2} represents alive with event.
+#' @param bandwidth specifies the bandwidth to be used for the kernel estimator.
+#' This can be selected data-adaptively using the \code{dab()} function.
+#' @param tau2 the maximum time that individuals were at risk for a visit,
+#' based on the study design.
+#' @param prob.times a vector of times at which probability in state will be estimated
+#' @param mu.times a vector of restriction times at which restricted mean time
+#' in state will be estimated
+#' @param boundary specifies how kernel estimation is done in the left boundary region
+#' from zero to the bandwidth. The default is \code{boundary.kernel}, meaning a boundary
+#'  kernel is used in the left boundary region. Set \code{boundary = 'interpolation'}
+#'  to use linear interpolation through the points (0,1) and (h, r) where h is the
+#'  bandwidth and r is the kernel estimate at time h.
+#' @param kfun specifies the kernel function to be used for estimation. The default
+#' is \code{epanechnikov}; other possible values are \code{triweight} and \code{uniform}
+#' @param std.err If \code{std.err= 'asymptotic'}  or \code{'boot'}, the function
+#' calculates the standard error estimates and 95% confidence intervals for each
+#' quantity using the asymptotic or bootstrap estimators. (\code{std.err= 'none'} is the default.)
+#' @param B the number of bootstrap samples; the default value of 50 for the sake
+#' of computation time, but we recommend increasing it
+#' @param boot.seed If \code{boot.seed} is specified, \code{set.seed(boot.seed)}
+#'  will be run before generating bootstrap samples, so the samples can be reproduced.
+#' @param scale a scaling factor for the restricted mean time in state output. For example,
+#' if times are in days and you want the output to reflect restricted mean years in state,
+#' set \code{scale = 365.25}.
+#'
+#' @return A list with up to two elements, \code{prob.info}  if \code{prob.times} was non-null,
+#' and \code{mu.info} if \code{mu.times} was non-null. \code{prob.info} contains
+#'  probability in state estimates and \code{mu.info} contains restricted mean time
+#'  in state estimates.
+#'  The columns in \code{prob.info} are \code{t, p1, p2, p3} for time and
+#'  probability in state 1, 2 and 3, respectively. If \code{std.err ='boot'} or
+#'  \code{'asymptotic'}, additional columns are added with standard error estimates
+#'  and lower and upper limits of the 95% confidence interval for each estimate.
+#'  The columns in \code{mu.info} are analogous.
 #' @export
 #'
-#' @examples
+#' @examples mydat <- simdat(50, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
+#' vital.lfu=c(30.4*36, 30.4*48),
+#' visit.schedule = 30.4*c(6, 12, 18, 24, 30, 36, 42, 48), scatter.sd=10)
+#' kernel.est(mydat, bandwidth=12*30.4, tau2=30.4*48, prob.times=30.4*48, mu.times=30.4*48,
+#' boundary = 'boundary.kernel', kfun='epanechnikov',
+#' std.err='none',  scale=12*30.4)
 kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
                        boundary = 'boundary.kernel', kfun='epanechnikov',
                        std.err='none', B=50, boot.seed = NA,
                        scale=1){
+
+  utils::globalVariables(c("Kq", "K1"))
 
   if (!is.null(prob.times)) if (all.equal(sort(prob.times),prob.times)!=T) stop('prob.times must be in ascending order.')
   if (!is.null(mu.times)) if (all.equal(sort(mu.times),mu.times)!=T) stop('mu.times must be in ascending order.')
@@ -105,7 +105,7 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
   #####################################################
   # generate survival data
   #####################################################
-  fit <- survfit(Surv(X, E)~1)
+  fit <- survival::survfit(survival::Surv(X, E)~1)
   Left <- c(0,summary(fit)$time)
   Right <- c(summary(fit)$time,Inf)
   Value <- c(1,summary(fit)$surv)
@@ -265,7 +265,7 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
       #####################################################
       # generate survival data
       #####################################################
-      fit <- survfit(Surv(X, E)~1)
+      fit <- survival::survfit(survival::Surv(X, E)~1)
       Left <- c(0,summary(fit)$time)
       Right <- c(summary(fit)$time,Inf)
       Value <- c(1,summary(fit)$surv)

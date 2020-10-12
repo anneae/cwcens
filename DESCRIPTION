@@ -11,8 +11,10 @@ Description: This pacakage implements non-parametric estimation via a kernel est
   censored and thus observed continuously up to the right censoring time. Component-wise 
   censored composite endpoints arise often in biostatistical practice. For example, 
   in many oncology studies, progression-free survival is component-wise censored. 
-Depends:
-    msm (>= 1.6.8)
+Imports:
+    msm,
+    pracma,
+    survival
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

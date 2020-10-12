@@ -80,7 +80,7 @@
 #'  for an individual were \code{45,40, NA, 125} because of normal scatter and missing visits,
 #'  the entries \code{t1-t4} will be \code{40, 45, 125, NA}.
 #' @export
-#'
+#' @import stats
 #' @examples simdat(50, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
 #' vital.lfu=c(30.4*36, 30.4*48),
 #' visit.schedule = 30.4*c(6, 12, 18, 24, 30, 36, 42, 48),

@@ -112,8 +112,8 @@ of the last observation in state 1 before state 2 was observed (\code{0} if an
 individual was already in state 2 at the first visit). Visits are numbered by
  ascending time and missing visits do not get a placeholder. That is, if
  \code{visit.schedule} was 30, 60, 90 and 120 days, but the actual visit times
- for an individual were 45,40, NA, 125 because of normal scatter and missing visits,
- the entries \code{t1-t4} will be 40, 45, 125, \code{NA}.
+ for an individual were \code{45,40, NA, 125} because of normal scatter and missing visits,
+ the entries \code{t1-t4} will be \code{40, 45, 125, NA}.
 }
 \description{
 This function simulates component-wise censored data from an irreversible or

@@ -64,7 +64,7 @@ f2 <- function(v,h,v.all,y.all,N,tau2, boundary, Left, Right, Value)
 int_f2<-function(lower, upper, bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value, warn = T){
   if (boundary =='interpolation' | lower>bandwidth|
       lambda(lower, bandwidth, V.all, N,tau2)>=0|lambda(upper, bandwidth, V.all, N,tau2)<0){
-    return(integral(f2, xmin = lower, xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+    return(pracma::integral(f2, xmin = lower, xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
              tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
              reltol = 1e-5))
   }
@@ -72,44 +72,24 @@ int_f2<-function(lower, upper, bandwidth, V.all,Y.all,N,tau2, boundary, Left, Ri
                  interval = c(lower,upper))$root
   leftpow <- -5
   rightpow <- -5
-  while (inherits(integral(f2, xmin =lower, xmax = dis-10^(leftpow), v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+  while (inherits(pracma::integral(f2, xmin =lower, xmax = dis-10^(leftpow), v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
            tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
            reltol = 1e-5), "try-error")){
     leftpow <- leftpow+1
   }
-  while (inherits(integral(f2, xmin =dis+10^(rightpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+  while (inherits(pracma::integral(f2, xmin =dis+10^(rightpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
                            tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
                            reltol = 1e-5), "try-error")){
     rightpow <- rightpow+1
   }
   if (warn == T) warning('Due to a discontinuity in hat r_h(t), the interval[', dis-10^(leftpow),',',dis+10^(rightpow),'] was excluded from integration.')
 
-  return(integral(f2, xmin = lower, xmax = dis-10^(leftpow), v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+  return(pracma::integral(f2, xmin = lower, xmax = dis-10^(leftpow), v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
                   tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
                   reltol = 1e-5)+
-          integral(f2, xmin = dis+10^(rightpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+          pracma::integral(f2, xmin = dis+10^(rightpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
            tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
            reltol = 1e-5))
-}
-
-dab<-function(lower, upper, V.all, Y.all, ID.all, tau, tau2, length.out = 5000){
-  ### This function searches a grid from lower to upper to find the bandwidth that
-  ### minimizes cross validation error (see Sun, Huang and Wang 2017).
-  ### Because we use a first-order kernel, the resulting h hat satisfies the
-  ### regularity condition in Sun, Huang and Wang 2017, i.e. it is on the order
-  ### of n^(-1/3). You can multiply by n^(1/24) to get a bandwidth on the order
-  ### of n^(-7/24), our recommendation.
-
-  hhh <- seq(from = lower, to = upper, length.out = length.out)
-  UCV.nw <- hhh
-  for(i in 1:length(hhh))
-  {
-    UCV.nw[i] <- sum((Y.all[V.all<tau]-mLeaveone(V.all[V.all<tau],ID.all[V.all<tau],hhh[i],V.all,Y.all,ID.all, tau2))^2)
-  }
-  hh1 <- hhh[which(UCV.nw  == min(UCV.nw,na.rm = TRUE))]
-  hh1 <- max(hh1)
-  # plot(hhh,UCV.nw)
-  return(hh1)
 }
 
 mLeaveone <- function(v,id,h,v.all,y.all,id.all, tau2)
