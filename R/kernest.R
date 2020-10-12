@@ -1,7 +1,10 @@
 #' Estimate the probability in state and restricted mean time in an illness-death
 #' model with component-wise censoring
 #'
-#'This function implements the
+#' This function implements the non-parametric kernel estimator of the probability
+#' in state and restricted mean time in state in an
+#' illness-death model with component-wise censoring, based on the method of
+#' Sun, Huang and Wang (2020).
 #'
 #' @param dat a dataframe with one row per individual with the variables
 #' \code{t1-tm} and \code{x1-xm} where \code{m}
@@ -57,7 +60,6 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
                        std.err='none', B=50, boot.seed = NA,
                        scale=1){
 
-  utils::globalVariables(c("Kq", "K1"))
 
   if (!is.null(prob.times)) if (all.equal(sort(prob.times),prob.times)!=T) stop('prob.times must be in ascending order.')
   if (!is.null(mu.times)) if (all.equal(sort(mu.times),mu.times)!=T) stop('mu.times must be in ascending order.')
@@ -79,7 +81,7 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
     Kq <<- function(x, q) {
       (1+q)^(-1)*(1+3*((1-q)/(1+q))^2+6*(1-q)*(1+q)^(-2)*x)
     }
-    K1 <<- function(u) 0.5* (abs(u) < 1)
+    K1 <- function(u) 0.5* (abs(u) < 1)
   }
   else if (kfun == 'triweight'){
     Kq <<- function(x, q) {
