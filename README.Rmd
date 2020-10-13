@@ -102,12 +102,13 @@ head(revdat)
 
 
 
-The individual in the first row of `mydat` had visits at `r mydat$t1[1]`, 
-`r mydat$t2[1]` and `r mydat$t3[1]` days, and their state at those visits was 
-`r mydat$x1[1]`, `r mydat$x2[1]` and `r mydat$x3[1]`, respectively, meaning that
+The individual in the first row of `revdat` had visits at `r revdat$t1[1]`, 
+`r revdat$t2[1]` and `r revdat$t3[1]` days, and their state at those visits was 
+`r revdat$x1[1]`, `r revdat$x2[1]` and `r revdat$x3[1]`, respectively,
+meaning that
 illness developed between the first and second visit, and the illness cleared up
 between the second and third visit. The individual then died at time 
-`r mydat$dtime[1]`.
+`r revdat$dtime[1]`.
 
 What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
 
