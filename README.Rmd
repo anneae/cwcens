@@ -19,12 +19,13 @@ knitr::opts_chunk$set(
 <!-- badges: end -->
 
 This pacakage implements non-parametric estimation via a kernel estimator 
-for the probability in state and restricted mean time in state in an illness-death 
-model under component-wise censoring. Component-wise censoring arises when
-illness can only be measured at a finite set of times, while death is right 
-censored and thus observed continuously up to the right censoring time. Component-wise 
-censored composite endpoints arise often in biostatistical practice. For example, 
-in many oncology studies, progression-free survival is component-wise censored. 
+for the probability in state and restricted mean time in state in an
+illness-death model under component-wise censoring. Component-wise censoring
+arises when illness can only be measured at a finite set of times, while death
+is right censored and thus observed continuously up to the right censoring time.
+Component-wise censored composite endpoints arise often in biostatistical
+practice. For example, in many oncology studies, progression-free survival is
+component-wise censored. 
 
 ## Installation
 
@@ -34,26 +35,79 @@ You can install the development version of cwcens from [GitHub](https://github.c
 # install.packages("devtools")
 devtools::install_github("anneae/cwcens")
 ```
-## Example
+## Irreversible Illness-Death Model Example 
 
-First, we will simulate data from an illness-death model. Our dataset will contain
-150 patients. Since `scale21` is 
+First, we will simulate data from a reversible illness-death model. Our dataset
+will contain 200 patients. Visits are scheduled every six months up 
+to four years, and actual visit times are scattered around the scheduled visit
+times according to a normal distribution with a standard deviation of 10 days.
 
-
-```{r example}
+```{r}
 library(cwcens)
-simdat(150, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
-       scale21=1/.0008,
-       vital.lfu=c(30.4*36, 30.4*48),
-       visit.schedule = 30.4*c(6, 12, 18, 24, 30, 36, 42, 48),
-       scatter.sd=10)
+irrevdat <- simdat(200, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
+       scale21=1/.0008, vital.lfu=c(30.4*36, 30.4*48),
+       visit.schedule = 30.4*c(12, 24, 36, 48), scatter.sd=10, 
+       seed = 123)
+
+head(irrevdat)
 ```
 
+The dataset `irrevdat` records the time that each visit occurred and the 
+individual's current state at each visit. For example, the individual in the
+first row of `irrevdat` had visits at `r irrevdat$t1[1]`, `r irrevdat$t2[1]`
+and `r irrevdat$t3[1]` days, and their state at those visits was 
+`r irrevdat$x1[1]`, `r irrevdat$x2[1]` and `r irrevdat$x3[1]`, respectively,
+meaning they were still in state 1 (alive and illness-free) at the third vist.
+The individual was right censored at time `r irrevdat$dtime[1]`.
 
-The standard approach would ...
+We can estimate the probability of being in each state at 4 years with 
+the following code:
+```{r}
+kernel.est(irrevdat, bandwidth = 30.4*12, tau2 = 30.4*48, prob.times = 30.4*48)
+```
+
+We estimate that an individual will be alive and illness-free at 4 years with probability 0.278, alive with illness with probability 0.206, and dead with 
+probability 0.516.
+
+Below, we estimate the probability of being in each state over time (at 1, 2, 
+..., 1459 days), and plot the results.
+
+```{r}
+pmat<-kernel.est(irrevdat, bandwidth = 30.4*12, tau2 = 30.4*48, prob.times = 1:1459)
+head(pmat$prob.info)
+plot((1:1459)/365.25, pmat$prob.info$p1)
+```
+Note that the first curve is the event-free survival curve. 
+
+The standard approach to calculating illness-free survival for this type of data
+uses the first time illness is *observed* as the date it occurred. If illness
+was not observed at a visit, the standard approach assumes it did not happen. 
+Thus the 
 
 The kernel approach does not ...
 
+## Reversible Illness-Death Model Example
+ Since `scale21` is greater than zero, the true model is reversible, 
+meaning individuals can transition back to the illness-free state (state 1) from the 
+alive with illness state (state 2). 
+
+```{r}
+revdat <- simdat(150, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
+       scale21=1/.0008, vital.lfu=c(30.4*36, 30.4*48),
+       visit.schedule = 30.4*c(12, 24, 36, 48), scatter.sd=10, 
+       seed = 111)
+
+head(revdat)
+```
+
+
+
+The individual in the first row of `mydat` had visits at `r mydat$t1[1]`, 
+`r mydat$t2[1]` and `r mydat$t3[1]` days, and their state at those visits was 
+`r mydat$x1[1]`, `r mydat$x2[1]` and `r mydat$x3[1]`, respectively, meaning that
+illness developed between the first and second visit, and the illness cleared up
+between the second and third visit. The individual then died at time 
+`r mydat$dtime[1]`.
 
 What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
 

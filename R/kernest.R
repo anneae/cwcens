@@ -312,7 +312,7 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
                            'mu1lower','mu2lower','mu3lower','mu1upper','mu2upper','mu3upper')
     }
   }
-  if (!is.null(prob.times)&!is.null(mu.times)) return(list(prob.info = prob.matrix, mu.info =rm.matrix))
-  else if(!is.null(prob.times)) return(list(prob.info = prob.matrix))
-  else if(!is.null(mu.times)) return(list(mu.info = rm.matrix))
+  if (!is.null(prob.times)&!is.null(mu.times)) return(list(prob.info = data.frame(prob.matrix), mu.info =data.frame(rm.matrix)))
+  else if(!is.null(prob.times)) return(list(prob.info = data.frame(prob.matrix)))
+  else if(!is.null(mu.times)) return(list(mu.info = data.frame(rm.matrix)))
 }
