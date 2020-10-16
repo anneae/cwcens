@@ -18,32 +18,45 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-This pacakage implements non-parametric estimation via a kernel estimator 
+This package implements non-parametric estimation via a kernel estimator 
 for the probability in state and restricted mean time in state in an
 illness-death model under component-wise censoring. Component-wise censoring
 arises when illness can only be measured at a finite set of times, while death
 is right censored and thus observed continuously up to the right censoring time.
 Component-wise censored composite endpoints arise often in biostatistical
 practice. For example, in many oncology studies, progression-free survival is
-component-wise censored. 
+component-wise censored. Many articles in the literature describe the bias and 
+"bumpy" Kaplan-Meier curves that can result from applying standard survival 
+methods to component-wise censored data. 
 
 ## Installation
 
 You can install the development version of cwcens from [GitHub](https://github.com/) with:
 
-``` r
+```{r}
 # install.packages("devtools")
 devtools::install_github("anneae/cwcens")
 ```
 ## Irreversible Illness-Death Model Example 
 
-First, we will simulate data from a reversible illness-death model. Our dataset
-will contain 200 patients. Visits are scheduled every six months up 
+First, we will simulate data from an irreversible illness-death model. 
+
+```{r, echo = F}
+states <- c("State 1\n Alive without \n illness", 
+            "State 2\n Alive with \n illness", 
+            "State 3\n Dead")
+connect <- matrix(0, 3, 3, dimnames=list(states, states))
+connect[1, 2:3] <- 1; connect[2,3]<-1
+survival::statefig(c(1, 2), connect)
+```
+
+Our dataset will contain 200 patients. Visits are scheduled every six months up 
 to four years, and actual visit times are scattered around the scheduled visit
 times according to a normal distribution with a standard deviation of 10 days.
 
 ```{r}
 library(cwcens)
+
 irrevdat <- simdat(200, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
        scale21=1/.0008, vital.lfu=c(30.4*36, 30.4*48),
        visit.schedule = 30.4*c(12, 24, 36, 48), scatter.sd=10, 
@@ -54,74 +67,194 @@ head(irrevdat)
 
 The dataset `irrevdat` records the time that each visit occurred and the 
 individual's current state at each visit. For example, the individual in the
-first row of `irrevdat` had visits at `r irrevdat$t1[1]`, `r irrevdat$t2[1]`
-and `r irrevdat$t3[1]` days, and their state at those visits was 
-`r irrevdat$x1[1]`, `r irrevdat$x2[1]` and `r irrevdat$x3[1]`, respectively,
-meaning they were still in state 1 (alive and illness-free) at the third vist.
-The individual was right censored at time `r irrevdat$dtime[1]`.
+first row of `irrevdat` had visits at `r round(irrevdat$t1[1],2)`, `r round(irrevdat$t2[1],2)`
+and `r round(irrevdat$t3[1],2)` days, and their state at those visits was 
+`r round(irrevdat$x1[1],2)`, `r round(irrevdat$x2[1],2)` and `r round(irrevdat$x3[1],2)`,
+respectively, meaning they were still in state 1 (alive and illness-free) at 
+the third visit. The individual was right censored at time `r round(irrevdat$dtime[1],2)`.
 
 We can estimate the probability of being in each state at 4 years with 
 the following code:
 ```{r}
-kernel.est(irrevdat, bandwidth = 30.4*12, tau2 = 30.4*48, prob.times = 30.4*48)
+PIS<-kernel.est(irrevdat, bandwidth = 30.4*12, tau2 = 30.4*48, prob.times = 30.4*48,
+                boundary = 'interpolation')
+PIS
 ```
 
-We estimate that an individual will be alive and illness-free at 4 years with probability 0.278, alive with illness with probability 0.206, and dead with 
-probability 0.516.
+We estimate that an individual will be alive and illness-free at 4 years with probability `r round(PIS$prob.info[2], 3)`, alive with illness with probability `r round(PIS$prob.info[3], 3)`, and dead with 
+probability `r round(PIS$prob.info[4], 3)`.
 
-Below, we estimate the probability of being in each state over time (at 1, 2, 
-..., 1459 days), and plot the results.
+We can estimate the restricted mean time in each state in the first 4 years with 
+the following code:
+```{r}
+RMTISdays<-kernel.est(irrevdat, bandwidth = 30.4*12, tau2 = 30.4*48, mu.times = 30.4*48,
+                boundary = 'interpolation')
+RMTISdays
+RMTISyears<-kernel.est(irrevdat, bandwidth = 30.4*12, tau2 = 30.4*48, mu.times = 30.4*48,
+                boundary = 'interpolation', scale=12*30.4)
+RMTISyears
+```
+
+We estimate that an individual will spend `r round(RMTISyears$mu.info[2],2)` years (`r round(RMTISdays$mu.info[2],0)` days) in state 1, `r round(RMTISyears$mu.info[3],2)` years (`r round(RMTISdays$mu.info[3],0)` days) in state 2, and `r round(RMTISyears$mu.info[4],2)` years (`r round(RMTISdays$mu.info[4],0)` days) in state 3, on average, out of the first 4 years. 
+
+Below, we estimate the probability of being in each state over time (specifically, each day up to 1459 days or 4 years), and plot the results.
 
 ```{r}
-pmat<-kernel.est(irrevdat, bandwidth = 30.4*12, tau2 = 30.4*48, prob.times = 1:1459)
+pmat<-kernel.est(irrevdat, bandwidth = 30.4*12, tau2 = 30.4*48, prob.times = 1:1459, boundary = 'interpolation')
 head(pmat$prob.info)
-plot((1:1459)/365.25, pmat$prob.info$p1)
+plot((1:1459)/365.25, pmat$prob.info$p1, type = 'l', col = 'dark green', 
+     xlab = 'Years', ylab = 'Probability in State', ylim = c(0,1))
+lines((1:1459)/365.25, pmat$prob.info$p2, col = 'goldenrod')
+lines((1:1459)/365.25, pmat$prob.info$p3, col = 'red')
 ```
-Note that the first curve is the event-free survival curve. 
+The green, yellow and red lines represent the probability of being alive and
+illness-free, alive with illness, and dead, over time. 
 
-The standard approach to calculating illness-free survival for this type of data
-uses the first time illness is *observed* as the date it occurred. If illness
-was not observed at a visit, the standard approach assumes it did not happen. 
-Thus the 
+Note that the green curve represents the probability of not having experienced 
+a composite endpoint consisting of death and illness. A common approach for estimating the illness-free survival probability in this setting is to apply
+the Kaplan-Meier estimator to the observed data. That is, treat the first time 
+illness is *observed* at a visit as the date it actually occurred, and if
+illness was not observed at a visit, assume illness did not occur.  Calculate
+the (possibly right censored) time to the earlier of illness or death for each
+person and apply the Kaplan-Meier estimator. The following code implements
+this approach and plots the resulting curve (green dotted line) along with the curve
+estimated with the kernel estimator (green solid line) and the true probability of being 
+alive and illness-free based on the simulation parameters (black solid line). 
 
-The kernel approach does not ...
+```{r}
+library(survival)
+etime <- ifelse(irrevdat$state2obs<Inf, irrevdat$state2obs, 
+                ifelse(irrevdat$dstatus==1, irrevdat$dtime, irrevdat$laststate1))
+event <- ifelse(irrevdat$state2obs<Inf, 1, irrevdat$dstatus)
+
+kmest <- survfit(Surv(etime, event)~1)
+kmest
+
+plot((1:1459)/365.25, pmat$prob.info$p1, type = 'l', col = 'dark green', 
+     xlab = 'Years', ylab = 'Probability in State', ylim = c(0,1))
+lines(stepfun(kmest$time/365.25, c(1,kmest$surv)), col = 'dark green', 
+      do.points= F, lty = 3)
+lines((1:1459)/365.25, pexp((1:1459), rate = 0.0002+0.0008, lower.tail = F))
+```
+
+The standard approach leads to a curve with noticeable drops around the time of 
+scheduled visits (i.e. at 1, 2, 3 and 4 years) since illness is first *observed* 
+around those times in many patients. In addition, when using the standard approach, 
+we right censored people without observed death or illness at the time of last 
+visit. This means that the number at risk is low after ~3 years, and it forces 
+the survival curve to drop to zero over the observed followup period. 
+Meanwhile, the kernel approach yields more plausible estimates. The kernel approach 
+takes into account the fact that visits offer a "snapshot" of current illness 
+status and the associated uncertainty about the exact time that illness developed.
 
 ## Reversible Illness-Death Model Example
- Since `scale21` is greater than zero, the true model is reversible, 
-meaning individuals can transition back to the illness-free state (state 1) from the 
-alive with illness state (state 2). 
+
+Next, we will simulate and analyze data from a reversible illness-death model. 
+In a reversible model, a patient's illness can resolve, so transitions 
+back to the illness-free state (state 1) from the illness state (state 2) are allowed.
+
+```{r, echo = F}
+states <- c("State 1\n Alive without \n illness", 
+            "State 2\n Alive with \n illness", 
+            "State 3\n Dead")
+connect <- matrix(0, 3, 3, dimnames=list(states, states))
+connect[1, 2:3] <- 1; connect[2,3]<-1
+connect[2, 1] <- 1
+survival::statefig(c(1, 2), connect)
+```
+
+When the `scale21` parameter in the `simdat` function is greater than zero, 
+data is simulated under a reversible model.
 
 ```{r}
-revdat <- simdat(150, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
-       scale21=1/.0008, vital.lfu=c(30.4*36, 30.4*48),
+revdat <- simdat(150, scale12=1/.0008, scale13=1/.0001, scale23=1/.0008,
+       scale21=1/.0016, vital.lfu=c(30.4*36, 30.4*48),
        visit.schedule = 30.4*c(12, 24, 36, 48), scatter.sd=10, 
        seed = 111)
 
 head(revdat)
 ```
 
+The individual in the
+first row of `revdat` had visits at `r round(revdat$t1[1],2)`, `r round(revdat$t2[1],2)`
+and `r round(revdat$t3[1],2)` days, and their state at those visits was 
+`r round(revdat$x1[1],2)`, `r round(revdat$x2[1],2)` and `r round(revdat$x3[1],2)`,
+respectively, meaning that the patient developed the illness
+between the first and second visit, and the illness cleared up
+between the second and third visit. 
+The individual was then right censored at time `r round(revdat$dtime[1],2)`.
 
-
-The individual in the first row of `revdat` had visits at `r revdat$t1[1]`, 
-`r revdat$t2[1]` and `r revdat$t3[1]` days, and their state at those visits was 
-`r revdat$x1[1]`, `r revdat$x2[1]` and `r revdat$x3[1]`, respectively,
-meaning that
-illness developed between the first and second visit, and the illness cleared up
-between the second and third visit. The individual then died at time 
-`r revdat$dtime[1]`.
-
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
-
-```{r cars}
-summary(cars)
+We next estimate and plot the probability of being in each state over time:
+```{r}
+pmat<-kernel.est(revdat, bandwidth = 30.4*12, tau2 = 30.4*48, prob.times = 1:1459, boundary = 'interpolation')
+head(pmat$prob.info)
+plot((1:1459)/365.25, pmat$prob.info$p1, type = 'l', col = 'dark green', 
+     xlab = 'Years', ylab = 'Probability in State', ylim = c(0,1))
+lines((1:1459)/365.25, pmat$prob.info$p2, col = 'goldenrod')
+lines((1:1459)/365.25, pmat$prob.info$p3, col = 'red')
 ```
 
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date.
+Finally, we will use the Aalen-Johansen estimator for multistate models, implemented
+in the `survival` package, and compare the results to the results from the kernel 
+estimator. Like the Kaplan-Meier estimator, the Aalen-Johansen estimator is not intended for component-wise censored data. With component-wise censoring, we don't observe the
+actual times of transitions between states. If a person is in one state at a given 
+visit, and in a different state at the next visit, we only know a transition occurred
+sometime between those two visits. To apply the Aalen-Johansen estimator, we will 
+assume that the transition actually occurred at the time of the second visit, 
+when the new state was first observed. The following code makes a long dataset with 
+counting process structure, which will be the input when we use `survfit` to 
+get the Aalen-Johnasen estimates. 
 
-You can also embed plots, for example:
+```{r}
+revdat$id<-1:nrow(revdat)
+revdat_long <- data.frame(id = revdat$id, tstart=0, 
+                          tstop = ifelse(!is.na(revdat[,'t1']), 
+                                         revdat[,'t1'], revdat$dtime),
+                          event = ifelse(!is.na(revdat[,'t1']), 
+                                         revdat[,'x1'], revdat$dstatus*3))
+for(j in 2:revdat$nvisits[1]){
+  revdat_long <- rbind(revdat_long, 
+          data.frame(id = revdat$id, tstart=revdat[,paste('t',j-1,sep ='')], 
+          tstop = ifelse(!is.na(revdat[,paste('t',j, sep='')]),  
+                        revdat[,paste('t',j, sep='')],
+                        ifelse(revdat$dstatus==1, 
+                               revdat$dtime, revdat[,paste('t',j-1,sep ='')])),
+          event = ifelse(!is.na(revdat[,paste('t',j, sep='')]),  
+                        revdat[,paste('x',j, sep='')],revdat$dstatus*3)))
+}
 
-```{r pressure, echo = FALSE}
-plot(pressure)
+revdat_long<-rbind(revdat_long, data.frame(id = revdat$id, 
+                tstart= revdat[,paste('t', revdat$nvisits[1], sep ='')],
+                tstop = ifelse(revdat$dstatus==1, revdat$dtime,
+                              revdat[,paste('t',revdat$nvisits[1], sep ='')]) , 
+                event = revdat$dstatus*3))
+
+revdat_long <- revdat_long[!is.na(revdat_long$tstart) & revdat_long$tstop > revdat_long$tstart, ]
+revdat_long <- revdat_long[order(revdat_long$id, revdat_long$tstart),]
+revdat_long$event<- factor(revdat_long$event, 0:3, labels=c("censor", "(s0)","st2", "st3"))
+    
+head(revdat_long)
 ```
 
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub!
+Below, we calculate the Aalen-Johansen estimates of the probability in state and 
+restricted mean time in state, and plot the probability in state estimates along 
+with the estimates from the kernel estimator. The green, yellow and red lines correspond to states 1, 2 and 3, and the dotted lines represent the Aalen-Johansen estimator 
+while the solid lines represent the kernel estimator.  
+```{r}
+ajest <- survfit(Surv(tstart, tstop, as.factor(event))~1, id = id, dat = revdat_long, influence=T)
+ajest
+
+plot((1:1459)/365.25, pmat$prob.info$p1, type = 'l', col = 'dark green', 
+     xlab = 'Years', ylab = 'Probability in State', ylim = c(0,1))
+lines((1:1459)/365.25, pmat$prob.info$p2, col = 'goldenrod')
+lines((1:1459)/365.25, pmat$prob.info$p3, col = 'red')
+lines(stepfun(ajest$time/365.25, c(1,ajest$pstate[,1])), 
+      col = 'dark green', do.points = F, lty = 3)
+lines(stepfun(ajest$time/365.25, c(0,ajest$pstate[,2])), 
+              col = 'goldenrod',  do.points = F, lty = 3)
+lines(stepfun(ajest$time/365.25, c(0,ajest$pstate[,3])), 
+              col = 'red', do.points = F, lty = 3)
+
+```
+
+
