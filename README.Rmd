@@ -257,4 +257,5 @@ lines(stepfun(ajest$time/365.25, c(0,ajest$pstate[,3])),
 
 ```
 
-
+The kernel estimator yields more plausible results than the Aalen-Johansen 
+estimator, which ignores component-wise censoring. 

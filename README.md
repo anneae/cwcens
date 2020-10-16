@@ -29,15 +29,15 @@ You can install the development version of cwcens from
 devtools::install_github("anneae/cwcens")
 #> Downloading GitHub repo anneae/cwcens@HEAD
 #> 
-#>      checking for file ‘/private/var/folders/_c/yvdy3gz5161gc0gp7v18hks80000gn/T/RtmpvJK88A/remotes282034495928/anneae-cwcens-e9e41c1/DESCRIPTION’ ...  ✓  checking for file ‘/private/var/folders/_c/yvdy3gz5161gc0gp7v18hks80000gn/T/RtmpvJK88A/remotes282034495928/anneae-cwcens-e9e41c1/DESCRIPTION’
+#>      checking for file ‘/private/var/folders/_c/yvdy3gz5161gc0gp7v18hks80000gn/T/RtmpfwfCjK/remotes2a87311e13a2/anneae-cwcens-d40b12f/DESCRIPTION’ ...  ✓  checking for file ‘/private/var/folders/_c/yvdy3gz5161gc0gp7v18hks80000gn/T/RtmpfwfCjK/remotes2a87311e13a2/anneae-cwcens-d40b12f/DESCRIPTION’
 #>   ─  preparing ‘cwcens’:
-#>      checking DESCRIPTION meta-information ...  ✓  checking DESCRIPTION meta-information
+#>    checking DESCRIPTION meta-information ...  ✓  checking DESCRIPTION meta-information
 #>   ─  checking for LF line-endings in source and make files and shell scripts
 #>   ─  checking for empty or unneeded directories
 #>   ─  building ‘cwcens_0.1.0.tar.gz’
 #>      
 #> 
-#> Installing package into '/private/var/folders/_c/yvdy3gz5161gc0gp7v18hks80000gn/T/RtmpuSc7tk/temp_libpath19dc488ec1ac'
+#> Installing package into '/private/var/folders/_c/yvdy3gz5161gc0gp7v18hks80000gn/T/RtmpuSc7tk/temp_libpath19dc7161ecab'
 #> (as 'lib' is unspecified)
 ```
 
@@ -340,3 +340,6 @@ lines(stepfun(ajest$time/365.25, c(0,ajest$pstate[,3])),
 ```
 
 <img src="man/figures/README-unnamed-chunk-13-1.png" width="100%" />
+
+The kernel estimator yields more plausible results than the
+Aalen-Johansen estimator, which ignores component-wise censoring.
