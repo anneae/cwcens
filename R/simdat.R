@@ -11,13 +11,13 @@
 #' @param scale12 The model has states 1, 2 and 3 representing illness free,
 #' alive with illness, and death. \code{scale12} is the scale parameter for the Weibull
 #' distribution used to generate the time from entry in state 1 until transition to state 2.
-#' Default is 0.0008.
+#' Default is 1/0.0008.
 #' @param scale13 the scale parameter for the Weibull
 #' distribution used to generate the time from entry in state 1 until transition to state 3.
-#' Default is 0.0002.
+#' Default is 1/0.0002.
 #' @param scale23 the scale parameter for the Weibull
 #' distribution used to generate the time from entry in state 2 until transition to state 3.
-#' Default is 0.0016.
+#' Default is 1/0.0016.
 #' @param shape12 the shape parameter for the Weibull
 #' distribution used to generate the time from entry in state 1 until transition to state 2.
 #' Default is 1.
