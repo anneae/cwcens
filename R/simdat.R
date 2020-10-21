@@ -219,6 +219,7 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
   # Delete variables that represent visits that never happened
   while(sum(!is.na(sim1[,paste('t',nvisits, sep='')]))==0){
     nvisits<-nvisits-1
+    if (nvisits == 0) stop('No visits ocurred; change parameters to get component-wise censored data.')
   }
   sim1<-sim1[,c('dtime','dstatus','state2obs','laststate1',
                 paste('t',1:nvisits, sep=''),paste('x',1:nvisits, sep=''))]
