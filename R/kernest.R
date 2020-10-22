@@ -129,8 +129,10 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
     mu.times2<-c(0, mu.times)
     rm.diff<-sapply(1:length(mu.times), function(x) int_f2(mu.times2[x], mu.times2[x+1],bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value))
     rm.matrix[,1]<-cumsum(rm.diff)/scale
-    rm.matrix[,3]<-mu.times/scale-sapply(1:length(mu.times), function(i)
-      summary(fit, rmean =mu.times[i], scale =scale, extend = T)$table[5])
+    rm.matrix[,3]<-mu.times/scale-sapply(1:length(mu.times), function(i){
+      if (mu.times[i]<min(X[E==1])) mu.times[i]/scale
+      else summary(fit, rmean = mu.times[i], scale =scale, extend = T)$table[5]
+    })
     rm.matrix[,2]<-mu.times/scale-rm.matrix[,1]-rm.matrix[,3]
   }
 
@@ -289,8 +291,10 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
         mu.times2<-c(0, mu.times)
         rm.diff<-sapply(1:length(mu.times), function(x) int_f2(mu.times2[x], mu.times2[x+1],bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value, warn = F))
         rm.matrix.boot[,1]<-cumsum(rm.diff)/scale
-        rm.matrix.boot[,3]<-mu.times/scale-sapply(1:length(mu.times), function(i)
-          summary(fit, rmean =mu.times[i], scale =scale, extend = T)$table[5])
+        rm.matrix.boot[,3]<-mu.times/scale-sapply(1:length(mu.times), function(i){
+          if (mu.times[i]<min(X[E==1])) mu.times[i]/scale
+          else summary(fit, rmean = mu.times[i], scale =scale, extend = T)$table[5]
+        })
         rm.matrix.boot[,2]<-mu.times/scale-rm.matrix.boot[,1]-rm.matrix.boot[,3]
         rm.boot[i,]<-t(rm.matrix.boot)
       }
