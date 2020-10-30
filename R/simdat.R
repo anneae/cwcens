@@ -41,7 +41,7 @@
 #' the interval defined by the vector. If \code{vital.lfu} is a scalar, all observations
 #' will be right-censored at \code{vital.lfu}.
 #' @param visit.schedule exactly one of \code{visit.schedule}, \code{visit.rate} and \code{renew.param}
-#' should be non-missing. If \code{visit.schedule} is non-missing, visits will be generated
+#' should be non-null If \code{visit.schedule} is non-null, visits will be generated
 #' according to a truncated normal distribution around each time in \code{visit.schedule},
 #' truncated at 3 standard deviations.
 #' @param scatter.sd the standard deviation of the truncated normal distribution used to
@@ -50,13 +50,13 @@
 #' which specifies the proportion of  individuals with missing data at each time
 #' in \code{visit.schedule}. If \code{missing.rate=0} (the default), no visits are missed.
 #' @param visit.rate exactly one of \code{visit.schedule}, \code{visit.rate} and \code{renew.param}
-#' should be non-missing. If \code{visit.rate} is non-missing,  visits will be generated
+#' should be non-null If \code{visit.rate} is non-null,  visits will be generated
 #' according to a Poisson process with rate function \code{visit.rate} as a function of time,
 #' for example, \code{visit.rate = function(t) .0001*t}. For a constant
 #' visit rate, use \code{visit.rate = function(x) sapply(x, function(t) C)} where \code{C}
 #' is the constant rate.
 #' @param renew.param exactly one of \code{visit.schedule}, \code{visit.rate} and \code{renew.param}
-#' should be non-missing. If \code{renew.param} is non-missing,  visits will be generated
+#' should be non-null If \code{renew.param} is non-null,  visits will be generated
 #' according to a Weibull renewal visit process with shape and scale parameters equal to
 #' the first and second entries of \code{renew.param}.
 #' @param visit.postprog if equal to 0, that once illness is observed at a visit,
@@ -90,10 +90,10 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
                  scale21=NULL, shape21=1, vital.lfu=c(30.4*36, 30.4*48),
                  visit.schedule = 30.4*c(6, 12, 18, 24, 30, 36, 42, 48),
                  scatter.sd=10, missing.rate = 0,
-                 visit.rate=NA, renew.param = NA,
+                 visit.rate=NULL, renew.param = NULL,
                  visit.postprog = 1, seed = NULL){
-  if (!is.function(visit.rate)+is.na(visit.schedule[1])+is.na(renew.param[1])!=2) stop('You must specify exactly one of visit.schedule, visit.rate and renew.param.')
-  if (max(missing.rate)>0 & is.na(visit.schedule[1])) stop('missing.rate must be zero unless you are using the visit.schedule option.')
+  if (!is.function(visit.rate)+is.null(visit.schedule[1])+is.null(renew.param[1])!=2) stop('You must specify exactly one of visit.schedule, visit.rate and renew.param.')
+  if (max(missing.rate)>0 & is.null(visit.schedule[1])) stop('missing.rate must be zero unless you are using the visit.schedule option.')
   if (!is.null(seed)) set.seed(seed)
 
   # Generate true transition times for an irreversible model
@@ -148,7 +148,7 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
   sim1$dtime[sim1$dstatus == 0] <- sim1$C_D[sim1$dstatus == 0]
 
   # Generate visit times from truncated normal distribution
-  if (!is.na(visit.schedule[1])){
+  if (!is.null(visit.schedule[1])){
     for (j in 1:length(visit.schedule)){
       sim1[,paste('t',j, sep='')]  <- visit.schedule[j] + msm::rtnorm(n, 0, scatter.sd, -3*scatter.sd, 3*scatter.sd)
     }
@@ -187,7 +187,7 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
     sim1[,paste('t', 1:nvisits, sep = '')]<-times
   }
   # Or, generate visits from a weibull renewal process
-  else if (!is.na(renew.param[1])){
+  else if (!is.null(renew.param[1])){
     times<-matrix(ncol = 1, nrow = n)
     times[,1]<-rweibull(n, shape = renew.param[1], scale = renew.param[2])
     nvisits<-1

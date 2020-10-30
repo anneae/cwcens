@@ -18,8 +18,8 @@ simdat(
   visit.schedule = 30.4 * c(6, 12, 18, 24, 30, 36, 42, 48),
   scatter.sd = 10,
   missing.rate = 0,
-  visit.rate = NA,
-  renew.param = NA,
+  visit.rate = NULL,
+  renew.param = NULL,
   visit.postprog = 1,
   seed = NULL
 )
@@ -69,7 +69,7 @@ the interval defined by the vector. If \code{vital.lfu} is a scalar, all observa
 will be right-censored at \code{vital.lfu}.}
 
 \item{visit.schedule}{exactly one of \code{visit.schedule}, \code{visit.rate} and \code{renew.param}
-should be non-missing. If \code{visit.schedule} is non-missing, visits will be generated
+should be non-null If \code{visit.schedule} is non-null, visits will be generated
 according to a truncated normal distribution around each time in \code{visit.schedule},
 truncated at 3 standard deviations.}
 
@@ -81,14 +81,14 @@ which specifies the proportion of  individuals with missing data at each time
 in \code{visit.schedule}. If \code{missing.rate=0} (the default), no visits are missed.}
 
 \item{visit.rate}{exactly one of \code{visit.schedule}, \code{visit.rate} and \code{renew.param}
-should be non-missing. If \code{visit.rate} is non-missing,  visits will be generated
+should be non-null If \code{visit.rate} is non-null,  visits will be generated
 according to a Poisson process with rate function \code{visit.rate} as a function of time,
 for example, \code{visit.rate = function(t) .0001*t}. For a constant
 visit rate, use \code{visit.rate = function(x) sapply(x, function(t) C)} where \code{C}
 is the constant rate.}
 
 \item{renew.param}{exactly one of \code{visit.schedule}, \code{visit.rate} and \code{renew.param}
-should be non-missing. If \code{renew.param} is non-missing,  visits will be generated
+should be non-null If \code{renew.param} is non-null,  visits will be generated
 according to a Weibull renewal visit process with shape and scale parameters equal to
 the first and second entries of \code{renew.param}.}
 
