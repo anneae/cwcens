@@ -211,7 +211,6 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
           #Variance of RMTIS3
           Phi3[i,j] <- (sum(1/(sx2.all[X<X[i] & X<mu.times[j] & E == TRUE])^2)/N - (1/sx2.all[i])*(X[i]<mu.times[j] & E[i] == 1))*rm.matrix[j,3]*scale +
             (mu2.3.all[i]/sx2.all[i])*(X[i]<mu.times[j] & E[i] == 1) - sum((mu2.3.all/(sx2.all)^2)[X<X[i] & X<mu.times[j] & E == TRUE])/N
-
         }
       }
 
@@ -230,15 +229,16 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
     if (length(prob.times)>0){
       # variance of sqrt(n)*(prob in state 1). Same as state 2.
       var1 <- (3/5*((1-prob.matrix[,3])*prob.matrix[,1]-prob.matrix[,1]^2)/lambda(prob.times,bandwidth, V.all, N, tau2 = tau2))/bandwidth
-
       prob.matrix<-cbind(prob.matrix, sqrt(var1)/sqrt(N), sqrt(var1)/sqrt(N), apply(phi3, 2, sd)/sqrt(N))
-      prob.matrix<-cbind(prob.times/scale, prob.matrix, prob.matrix[,1:3]-1.96*prob.matrix[,4:6], prob.matrix[,1:3]+1.96*prob.matrix[,4:6])
+      if (length(prob.times)>1) prob.matrix<-cbind(prob.times/scale, prob.matrix, prob.matrix[,1:3]-1.96*prob.matrix[,4:6], prob.matrix[,1:3]+1.96*prob.matrix[,4:6])
+      else prob.matrix <- matrix(c(prob.times/scale, prob.matrix, prob.matrix[,1:3]-1.96*prob.matrix[,4:6], prob.matrix[,1:3]+1.96*prob.matrix[,4:6]), nrow = 1)
       colnames(prob.matrix)<-c('time','p1','p2','p3','p1se', 'p2se','p3se',
                                'p1lower','p2lower','p3lower','p1upper','p2upper','p3upper')
     }
     if (length(mu.times)>0){
       rm.matrix<-cbind(rm.matrix, apply(Phi, 2, sd)/sqrt(N), apply(Phi.2, 2, sd)/sqrt(N), apply(Phi3, 2, sd)/sqrt(N))
-      rm.matrix<-cbind(mu.times/scale, rm.matrix, rm.matrix[,1:3]-1.96*rm.matrix[,4:6], rm.matrix[,1:3]+1.96*rm.matrix[,4:6])
+      if (length(mu.times)>1) rm.matrix <- cbind(mu.times/scale, rm.matrix, rm.matrix[,1:3]-1.96*rm.matrix[,4:6], rm.matrix[,1:3]+1.96*rm.matrix[,4:6])
+      else rm.matrix <- matrix(c(mu.times/scale, rm.matrix, rm.matrix[,1:3]-1.96*rm.matrix[,4:6], rm.matrix[,1:3]+1.96*rm.matrix[,4:6]), nrow = 1)
       colnames(rm.matrix)<-c('time','mu1','mu2','mu3','mu1se', 'mu2se','mu3se',
                              'mu1lower','mu2lower','mu3lower','mu1upper','mu2upper','mu3upper')
     }
