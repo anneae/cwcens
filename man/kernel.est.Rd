@@ -15,7 +15,7 @@ kernel.est(
   kfun = "epanechnikov",
   std.err = "none",
   B = 50,
-  boot.seed = NA,
+  boot.seed = NULL,
   scale = 1
 )
 }

@@ -57,7 +57,7 @@
 #' std.err='none',  scale=12*30.4)
 kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
                        boundary = 'boundary.kernel', kfun='epanechnikov',
-                       std.err='none', B=50, boot.seed = NA,
+                       std.err='none', B=50, boot.seed = NULL,
                        scale=1){
 
 
@@ -247,7 +247,7 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
   else if (std.err == 'boot'){
     if (length(prob.times)>0) prob.boot<-matrix(NA, nrow = B, ncol = 3*length(prob.times))
     if (length(mu.times)>0) rm.boot<-matrix(NA, nrow = B, ncol = 3*length(mu.times))
-    if(!is.na(boot.seed)) set.seed(boot.seed)
+    if(!is.null(boot.seed)) set.seed(boot.seed)
     indices<-matrix(sample(nrow(dat), nrow(dat)*B, replace = T), nrow = B)
 
     for (i in 1:B) {
