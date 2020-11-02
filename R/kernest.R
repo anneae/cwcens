@@ -4,7 +4,7 @@
 #' This function implements the non-parametric kernel estimator of the probability
 #' in state and restricted mean time in state in an
 #' illness-death model with component-wise censoring, based on the method of
-#' Sun, Huang and Wang (2020).
+#' Sun, Huang and Wang (2017).
 #'
 #' @param dat a dataframe with one row per individual with the variables
 #' \code{t1-tm} and \code{x1-xm} where \code{m}
