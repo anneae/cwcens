@@ -72,14 +72,14 @@ int_f2<-function(lower, upper, bandwidth, V.all,Y.all,N,tau2, boundary, Left, Ri
                  interval = c(lower,upper))$root
   leftpow <- -5
   rightpow <- -5
-  while (inherits(pracma::integral(f2, xmin =lower, xmax = dis-10^(leftpow), v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+  while (inherits(try(pracma::integral(f2, xmin =lower, xmax = dis-10^(leftpow), v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
            tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-           reltol = 1e-5), "try-error")){
+           reltol = 1e-5), silent = T), "try-error")){
     leftpow <- leftpow+1
   }
-  while (inherits(pracma::integral(f2, xmin =dis+10^(rightpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+  while (inherits(try(pracma::integral(f2, xmin =dis+10^(rightpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
                            tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                           reltol = 1e-5), "try-error")){
+                           reltol = 1e-5), silent = T), "try-error")){
     rightpow <- rightpow+1
   }
   if (warn == T) warning('Due to a discontinuity in hat r_h(t), the interval[', dis-10^(leftpow),',',dis+10^(rightpow),'] was excluded from integration.')
