@@ -149,10 +149,13 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
 
   # Generate visit times from truncated normal distribution
   if (!is.null(visit.schedule[1])){
-    for (j in 1:length(visit.schedule)){
-      sim1[,paste('t',j, sep='')]  <- visit.schedule[j] + msm::rtnorm(n, 0, scatter.sd, -3*scatter.sd, 3*scatter.sd)
-    }
     nvisits<-length(visit.schedule)
+    if (scatter.sd==0) sim1[,paste('t',1:nvisits, sep='')] <- rep(visit.schedule, each = nrow(sim1))
+    else {
+      for (j in 1:nvisits){
+        sim1[,paste('t',j, sep='')]  <- visit.schedule[j] + msm::rtnorm(n, 0, scatter.sd, -3*scatter.sd, 3*scatter.sd)
+      }
+    }
     # Make some visits missing, if needed
     if (length(missing.rate)==1 & missing.rate[1] == 0) missing.rate<-rep(0, length(visit.schedule))
     if (length(missing.rate) != length(visit.schedule)) stop ('missing.rate and visit.schedule must have same length.')
