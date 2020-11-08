@@ -64,32 +64,48 @@ f2 <- function(v,h,v.all,y.all,N,tau2, boundary, Left, Right, Value)
 int_f2<-function(lower, upper, bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value, warn = T){
   if (boundary =='interpolation' | lower>bandwidth|
       lambda(lower, bandwidth, V.all, N,tau2)>=0|lambda(upper, bandwidth, V.all, N,tau2)<0){
-    return(pracma::integral(f2, xmin = lower, xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-             tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-             reltol = 1e-5))
+     myint <- try(pracma::integral(f2, xmin =lower, xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+                         tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
+                         reltol = 1e-5), silent = T)
+     if (inherits(myint, "try-error")){
+       brkpt <- optimize(function(x) lambda(x, bandwidth, V.all, N, tau2),
+                       interval=c(lower, bandwidth), maximum=F)$minimum
+       myint <- int_w_discon(lower, brkpt, bandwidth, V.all,Y.all,N,tau2,
+                    boundary, Left, Right, Value, warn = warn)+
+                int_w_discon(brkpt, upper, bandwidth, V.all,Y.all,N,tau2,
+                    boundary, Left, Right, Value, warn = warn)
+     }
+    return(myint)
   }
+  return(int_w_discon(lower, upper, bandwidth, V.all,Y.all,N,tau2,
+                      boundary, Left, Right, Value, warn = warn))
+}
+
+int_w_discon<-function(lower, upper, bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value, warn = T){
   dis<-uniroot(function (x) lambda(x, bandwidth, V.all, N,tau2),
-                 interval = c(lower,upper))$root
+               interval = c(lower,upper))$root
   leftpow <- -5
   rightpow <- -5
-  while (inherits(try(pracma::integral(f2, xmin =lower, xmax = dis-10^(leftpow), v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-           tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-           reltol = 1e-5), silent = T), "try-error")){
+  myint1<-try(pracma::integral(f2, xmin =lower, xmax = dis-10^(leftpow), v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+                               tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
+                               reltol = 1e-5), silent = T)
+  while (inherits(myint1, "try-error")){
     leftpow <- leftpow+1
+    myint1<-try(pracma::integral(f2, xmin =lower, xmax = dis-10^(leftpow), v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+                                 tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
+                                 reltol = 1e-5), silent = T)
   }
-  while (inherits(try(pracma::integral(f2, xmin =dis+10^(rightpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                           tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                           reltol = 1e-5), silent = T), "try-error")){
+  myint2<-try(pracma::integral(f2, xmin =dis+10^(rightpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+                               tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
+                               reltol = 1e-5), silent = T)
+  while (inherits(myint2, "try-error")){
     rightpow <- rightpow+1
+    myint2<-try(pracma::integral(f2, xmin =dis+10^(rightpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+                                 tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
+                                 reltol = 1e-5), silent = T)
   }
   if (warn == T) warning('Due to a discontinuity in hat r_h(t), the interval[', dis-10^(leftpow),',',dis+10^(rightpow),'] was excluded from integration.')
-
-  return(pracma::integral(f2, xmin = lower, xmax = dis-10^(leftpow), v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                  reltol = 1e-5)+
-          pracma::integral(f2, xmin = dis+10^(rightpow), xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-           tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-           reltol = 1e-5))
+  return(myint1+myint2)
 }
 
 mLeaveone <- function(v,id,h,v.all,y.all,id.all, tau2)
