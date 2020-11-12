@@ -39,7 +39,8 @@ devtools::install_github("anneae/cwcens")
 ```
 ## Irreversible Illness-Death Model Example 
 
-First, we will simulate data from an irreversible illness-death model. 
+First, we will simulate data from an irreversible illness-death model 
+(that is, a model where backwards transitions are not allowed). 
 
 ```{r, echo = F}
 states <- c("State 1\n Alive without \n illness", 
@@ -50,15 +51,20 @@ connect[1, 2:3] <- 1; connect[2,3]<-1
 survival::statefig(c(1, 2), connect)
 ```
 
-Our dataset will contain 200 patients. Visits are scheduled every six months up 
+Our simulated dataset will contain 200 patients. Visits are scheduled every six months up 
 to four years, and actual visit times are scattered around the scheduled visit
-times according to a normal distribution with a standard deviation of 10 days.
+times according to a normal distribution with a standard deviation of 10 days. 
+Right censoring time for death is generated from a uniform distribution on the interval
+from 36 to 48 months. Setting `scale12 = NULL` means 1 to 2 transitions are not allowed 
+(so the true multistate model is irreversible). The default values of `shape12`, 
+`shape13` and `shape23` are 1, which implies that all transition intensities are constant 
+over time. 
 
 ```{r}
 library(cwcens)
 
 irrevdat <- simdat(200, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
-       scale21=1/.0008, vital.lfu=c(30.4*36, 30.4*48),
+       scale21=NULL, vital.lfu=c(30.4*36, 30.4*48),
        visit.schedule = 30.4*c(12, 24, 36, 48), scatter.sd=10, 
        seed = 123)
 
@@ -111,13 +117,17 @@ The green, yellow and red lines represent the probability of being alive and
 illness-free, alive with illness, and dead, over time. 
 
 Note that the green curve represents the probability of not having experienced 
-a composite endpoint consisting of death and illness. A common approach for estimating the illness-free survival probability in this setting is to apply
+a composite endpoint consisting of death and illness, which is something we often
+want to estimate in clinical studies. A common approach for estimating the 
+illness-free survival probability in this setting is to apply
 the Kaplan-Meier estimator to the observed data. That is, treat the first time 
 illness is *observed* at a visit as the date it actually occurred, and if
-illness was not observed at a visit, assume illness did not occur.  Calculate
+illness was not observed at a visit, assume illness did not occur. Then, calculate
 the (possibly right censored) time to the earlier of illness or death for each
-person and apply the Kaplan-Meier estimator. The following code implements
-this approach and plots the resulting curve (green dotted line) along with the curve
+person and apply the Kaplan-Meier estimator. 
+
+The following code implements
+this "standard" approach and plots the resulting curve (green dotted line) along with the curve
 estimated with the kernel estimator (green solid line) and the true probability of being 
 alive and illness-free based on the simulation parameters (black solid line). 
 

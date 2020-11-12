@@ -27,47 +27,43 @@ You can install the development version of cwcens from
 ``` r
 # install.packages("devtools")
 devtools::install_github("anneae/cwcens")
-#> Downloading GitHub repo anneae/cwcens@HEAD
-#> 
-#>      checking for file ‘/private/var/folders/_c/yvdy3gz5161gc0gp7v18hks80000gn/T/RtmpfwfCjK/remotes2a87311e13a2/anneae-cwcens-d40b12f/DESCRIPTION’ ...  ✓  checking for file ‘/private/var/folders/_c/yvdy3gz5161gc0gp7v18hks80000gn/T/RtmpfwfCjK/remotes2a87311e13a2/anneae-cwcens-d40b12f/DESCRIPTION’
-#>   ─  preparing ‘cwcens’:
-#>    checking DESCRIPTION meta-information ...  ✓  checking DESCRIPTION meta-information
-#>   ─  checking for LF line-endings in source and make files and shell scripts
-#>   ─  checking for empty or unneeded directories
-#>   ─  building ‘cwcens_0.1.0.tar.gz’
-#>      
-#> 
-#> Installing package into '/private/var/folders/_c/yvdy3gz5161gc0gp7v18hks80000gn/T/RtmpuSc7tk/temp_libpath19dc7161ecab'
-#> (as 'lib' is unspecified)
+#> Skipping install of 'cwcens' from a github remote, the SHA1 (0102768b) has not changed since last install.
+#>   Use `force = TRUE` to force installation
 ```
 
 ## Irreversible Illness-Death Model Example
 
-First, we will simulate data from an irreversible illness-death model.
+First, we will simulate data from an irreversible illness-death model
+(that is, a model where backwards transitions are not allowed).
 
 <img src="man/figures/README-unnamed-chunk-3-1.png" width="100%" />
 
-Our dataset will contain 200 patients. Visits are scheduled every six
-months up to four years, and actual visit times are scattered around the
-scheduled visit times according to a normal distribution with a standard
-deviation of 10 days.
+Our simulated dataset will contain 200 patients. Visits are scheduled
+every six months up to four years, and actual visit times are scattered
+around the scheduled visit times according to a normal distribution with
+a standard deviation of 10 days. Right censoring time for death is
+generated from a uniform distribution on the interval from 36 to 48
+months. Setting `scale12 = NULL` means 1 to 2 transitions are not
+allowed (so the true multistate model is irreversible). The default
+values of `shape12`, `shape13` and `shape23` are 1, which implies that
+all transition intensities are constant over time.
 
 ``` r
 library(cwcens)
 
 irrevdat <- simdat(200, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
-       scale21=1/.0008, vital.lfu=c(30.4*36, 30.4*48),
+       scale21=NULL, vital.lfu=c(30.4*36, 30.4*48),
        visit.schedule = 30.4*c(12, 24, 36, 48), scatter.sd=10, 
        seed = 123)
 
 head(irrevdat)
 #>       dtime dstatus state2obs laststate1       t1       t2       t3 t4 x1 x2 x3
-#> 1 1257.6632       0       Inf   1098.619 366.2642 730.8503 1098.619 NA  1  1  1
-#> 2 1435.7722       0       Inf   1098.825 387.8506 722.5368 1098.825 NA  1  1  1
-#> 3  298.6501       1       Inf      0.000       NA       NA       NA NA NA NA NA
-#> 4  414.0724       1  361.7453      0.000 361.7453       NA       NA NA  2 NA NA
-#> 5  136.8661       1       Inf      0.000       NA       NA       NA NA NA NA NA
-#> 6 1275.2804       0       Inf   1092.912 379.9240 741.2849 1092.912 NA  1  1  1
+#> 1 1180.9414       0       Inf  1097.9628 364.0644 740.3401 1097.963 NA  1  1  1
+#> 2  191.8389       1       Inf     0.0000       NA       NA       NA NA NA NA NA
+#> 3 1176.7786       0       Inf  1102.9520 358.4525 729.2667 1102.952 NA  1  1  1
+#> 4  499.9653       1  364.5116     0.0000 364.5116       NA       NA NA  2 NA NA
+#> 5  656.5566       1  371.5070     0.0000 371.5070       NA       NA NA  2 NA NA
+#> 6  637.7663       1       Inf   348.2945 348.2945       NA       NA NA  1 NA NA
 #>   x4 nvisits
 #> 1 NA       4
 #> 2 NA       4
@@ -79,10 +75,10 @@ head(irrevdat)
 
 The dataset `irrevdat` records the time that each visit occurred and the
 individual’s current state at each visit. For example, the individual in
-the first row of `irrevdat` had visits at 366.26, 730.85 and 1098.62
+the first row of `irrevdat` had visits at 364.06, 740.34 and 1097.96
 days, and their state at those visits was 1, 1 and 1, respectively,
 meaning they were still in state 1 (alive and illness-free) at the third
-visit. The individual was right censored at time 1257.66.
+visit. The individual was right censored at time 1180.94.
 
 We can estimate the probability of being in each state at 4 years with
 the following code:
@@ -93,12 +89,12 @@ PIS<-kernel.est(irrevdat, bandwidth = 30.4*12, tau2 = 30.4*48, prob.times = 30.4
 PIS
 #> $prob.info
 #>     time        p1        p2        p3
-#> 1 1459.2 0.2780514 0.2061952 0.5157534
+#> 1 1459.2 0.2568814 0.1524123 0.5907063
 ```
 
 We estimate that an individual will be alive and illness-free at 4 years
-with probability 0.278, alive with illness with probability 0.206, and
-dead with probability 0.516.
+with probability 0.257, alive with illness with probability 0.152, and
+dead with probability 0.591.
 
 We can estimate the restricted mean time in each state in the first 4
 years with the following code:
@@ -108,19 +104,19 @@ RMTISdays<-kernel.est(irrevdat, bandwidth = 30.4*12, tau2 = 30.4*48, mu.times = 
                 boundary = 'interpolation')
 RMTISdays
 #> $mu.info
-#>     time      mu1      mu2      mu3
-#> 1 1459.2 867.5006 228.1778 363.5216
+#>     time      mu1      mu2     mu3
+#> 1 1459.2 775.4122 251.1048 432.683
 RMTISyears<-kernel.est(irrevdat, bandwidth = 30.4*12, tau2 = 30.4*48, mu.times = 30.4*48,
                 boundary = 'interpolation', scale=12*30.4)
 RMTISyears
 #> $mu.info
-#>   time      mu1       mu2       mu3
-#> 1    4 2.378017 0.6254874 0.9964957
+#>   time      mu1       mu2      mu3
+#> 1    4 2.125582 0.6883355 1.186083
 ```
 
-We estimate that an individual will spend 2.38 years (868 days) in state
-1, 0.63 years (228 days) in state 2, and 1 years (364 days) in state 3,
-on average, out of the first 4 years.
+We estimate that an individual will spend 2.13 years (775 days) in state
+1, 0.69 years (251 days) in state 2, and 1.19 years (433 days) in state
+3, on average, out of the first 4 years.
 
 Below, we estimate the probability of being in each state over time
 (specifically, each day up to 1459 days or 4 years), and plot the
@@ -129,13 +125,13 @@ results.
 ``` r
 pmat<-kernel.est(irrevdat, bandwidth = 30.4*12, tau2 = 30.4*48, prob.times = 1:1459, boundary = 'interpolation')
 head(pmat$prob.info)
-#>   time        p1           p2 p3
-#> 1    1 0.9994593 0.0005406725  0
-#> 2    2 0.9989187 0.0010813451  0
-#> 3    3 0.9983780 0.0016220176  0
-#> 4    4 0.9978373 0.0021626902  0
-#> 5    5 0.9972966 0.0027033627  0
-#> 6    6 0.9967560 0.0032440353  0
+#>   time        p1           p2    p3
+#> 1    1 0.9993932 0.0006068061 0.000
+#> 2    2 0.9987864 0.0012136123 0.000
+#> 3    3 0.9931887 0.0018113163 0.005
+#> 4    4 0.9925849 0.0024150884 0.005
+#> 5    5 0.9919811 0.0030188606 0.005
+#> 6    6 0.9913774 0.0036226327 0.005
 plot((1:1459)/365.25, pmat$prob.info$p1, type = 'l', col = 'dark green', 
      xlab = 'Years', ylab = 'Probability in State', ylim = c(0,1))
 lines((1:1459)/365.25, pmat$prob.info$p2, col = 'goldenrod')
@@ -147,18 +143,21 @@ green, yellow and red lines represent the probability of being alive and
 illness-free, alive with illness, and dead, over time.
 
 Note that the green curve represents the probability of not having
-experienced a composite endpoint consisting of death and illness. A
-common approach for estimating the illness-free survival probability in
-this setting is to apply the Kaplan-Meier estimator to the observed
-data. That is, treat the first time illness is *observed* at a visit as
-the date it actually occurred, and if illness was not observed at a
-visit, assume illness did not occur. Calculate the (possibly right
+experienced a composite endpoint consisting of death and illness, which
+is something we often want to estimate in clinical studies. A common
+approach for estimating the illness-free survival probability in this
+setting is to apply the Kaplan-Meier estimator to the observed data.
+That is, treat the first time illness is *observed* at a visit as the
+date it actually occurred, and if illness was not observed at a visit,
+assume illness did not occur. Then, calculate the (possibly right
 censored) time to the earlier of illness or death for each person and
-apply the Kaplan-Meier estimator. The following code implements this
-approach and plots the resulting curve (green dotted line) along with
-the curve estimated with the kernel estimator (green solid line) and the
-true probability of being alive and illness-free based on the simulation
-parameters (black solid line).
+apply the Kaplan-Meier estimator.
+
+The following code implements this “standard” approach and plots the
+resulting curve (green dotted line) along with the curve estimated with
+the kernel estimator (green solid line) and the true probability of
+being alive and illness-free based on the simulation parameters (black
+solid line).
 
 ``` r
 library(survival)
@@ -171,7 +170,7 @@ kmest
 #> Call: survfit(formula = Surv(etime, event) ~ 1)
 #> 
 #>       n  events  median 0.95LCL 0.95UCL 
-#>     200     131     874     736    1099
+#>     200     138     741     722    1091
 
 plot((1:1459)/365.25, pmat$prob.info$p1, type = 'l', col = 'dark green', 
      xlab = 'Years', ylab = 'Probability in State', ylim = c(0,1))
