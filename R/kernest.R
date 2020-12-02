@@ -26,7 +26,7 @@
 #'  to use linear interpolation through the points (0,1) and (h, r) where h is the
 #'  bandwidth and r is the kernel estimate at time h.
 #' @param kfun specifies the kernel function to be used for estimation. The default
-#' is \code{epanechnikov}; other possible values are \code{triweight} and \code{uniform}
+#' is \code{epanechnikov}; other possible values are \code{triweight}, \code{biweight} and \code{uniform}
 #' @param std.err If \code{std.err= 'asymptotic'}  or \code{'boot'}, the function
 #' calculates the standard error estimates and 95% confidence intervals for each
 #' quantity using the asymptotic or bootstrap estimators. (\code{std.err= 'none'} is the default.)
@@ -84,6 +84,12 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
     K1 <- function(u) 0.5* (abs(u) < 1)
   }
   else if (kfun == 'triweight'){
+    Kq <<- function(x, q) {
+      140*(1+x)^3*(q-x)^3*(1+q)^(-7)*(1+9*((1-q)/(1+q))^2+18*(1-q)*((1+q)^(-2))*x)
+    }
+    K1 <<- function(u) (35/32)*(1-u^2)^3 * (abs(u) < 1)
+  }
+  else if (kfun == 'biweight'){
     Kq <<- function(x, q) {
       30*(1+x)^2*(q-x)^2*(1+q)^(-5)*(1+7*((1-q)/(1+q))^2+14*(1-q)*((1+q)^(-2))*x)
     }

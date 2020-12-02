@@ -46,7 +46,7 @@ from zero to the bandwidth. The default is \code{boundary.kernel}, meaning a bou
  bandwidth and r is the kernel estimate at time h.}
 
 \item{kfun}{specifies the kernel function to be used for estimation. The default
-is \code{epanechnikov}; other possible values are \code{triweight} and \code{uniform}}
+is \code{epanechnikov}; other possible values are \code{triweight}, \code{biweight} and \code{uniform}}
 
 \item{std.err}{If \code{std.err= 'asymptotic'}  or \code{'boot'}, the function
 calculates the standard error estimates and 95% confidence intervals for each
