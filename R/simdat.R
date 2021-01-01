@@ -59,8 +59,16 @@
 #' should be non-null If \code{renew.param} is non-null,  visits will be generated
 #' according to a Weibull renewal visit process with shape and scale parameters equal to
 #' the first and second entries of \code{renew.param}.
-#' @param visit.postprog if equal to 0, that once illness is observed at a visit,
-#' no more visits occur for that individual. The default is 1.
+#' @param visit.postprog if equal to 0, visits stop once illness is observed at a visit.
+#' If equal to 1, visits continue as normal. The default is 1.
+#' @param dependent.visit If \code{dependent.visit} is non-null, an extra visit is
+#' added following an individual's first transition to state 2. If \code{dependent.visit} is
+#' a vector, the time from the transition to state 2 until the visit is generated
+#' from a truncated normal distribution with mean, standard deviation given by the
+#' first and second elements of the vector, respectively.
+#' If \code{dependent.visit} is a function, the  time from the transition to state
+#' 2 until the visit will be generated according to a Poisson process with rate
+#' function \code{visit.rate} as a function of time.
 #' @param seed If \code{seed} is specified, \code{set.seed(seed)} will be run before
 #' generating the data, so the data can be reproduced.
 #'
@@ -91,7 +99,8 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
                  visit.schedule = 30.4*c(6, 12, 18, 24, 30, 36, 42, 48),
                  scatter.sd=10, missing.rate = 0,
                  visit.rate=NULL, renew.param = NULL,
-                 visit.postprog = 1, seed = NULL){
+                 visit.postprog = 1, dependent.visit =NULL,
+                 seed = NULL){
   if (!is.function(visit.rate)+is.null(visit.schedule[1])+is.null(renew.param[1])!=2) stop('You must specify exactly one of visit.schedule, visit.rate and renew.param.')
   if (max(missing.rate)>0 & is.null(visit.schedule[1])) stop('missing.rate must be zero unless you are using the visit.schedule option.')
   if (!is.null(seed)) set.seed(seed)
@@ -146,7 +155,12 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
   else if (length(vital.lfu==2)) sim1$C_D <- runif(n, min = vital.lfu[1], max = vital.lfu[2])
   sim1$dstatus<- as.numeric(sim1$dtime<sim1$C_D)
   sim1$dtime[sim1$dstatus == 0] <- sim1$C_D[sim1$dstatus == 0]
-
+  # Helper function to generate events from a poisson process given the last event time,
+  # the rate function of the process, and a random exponential(1) RV called poisson_incr
+  next_event_time<-function(last_ev_time, visit.rate, poisson_incr){
+    solvefort<-function(t) integrate(visit.rate, lower = last_ev_time, upper = t)$value - poisson_incr
+    uniroot(solvefort, interval = c(last_ev_time, last_ev_time+6*30.4), extendInt = 'upX')$root
+  }
   # Generate visit times from truncated normal distribution
   if (!is.null(visit.schedule[1])){
     nvisits<-length(visit.schedule)
@@ -173,10 +187,6 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
   }
   # Or, generates visits from a poisson process
   else if (is.function(visit.rate)){
-    next_event_time<-function(last_ev_time, visit.rate, poisson_incr){
-      solvefort<-function(t) integrate(visit.rate, lower = last_ev_time, upper = t)$value - poisson_incr
-      uniroot(solvefort, interval = c(last_ev_time, last_ev_time+6*30.4), extendInt = 'upX')$root
-    }
     # Generate each person's first visit
     poisson_incr<-rexp(n=n)
     times<-matrix(ncol = 1, nrow = n)
@@ -200,6 +210,24 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
     }
     sim1[,paste('t', 1:nvisits, sep = '')]<-times
   }
+  # Add extra visit following the transition to state 2, to mimic a person
+  # experiencing symptoms and then coming in for a visit.
+  if (!is.null(dependent.visit)){
+    nvisits<-nvisits+1
+
+    if (is.vector(dependent.visit)) sim1[,paste('t', nvisits, sep = '')] <-
+        truetime[,1] +  msm::rtnorm(n, mean = dependent.visit[1], sd = dependent.visit[2],
+                                    lower = dependent.visit[1] - 3*dependent.visit[2],
+                                    upper = dependent.visit[1] + 3*dependent.visit[2])
+    if (is.function(dependent.visit)) {
+      poisson_incr<-rexp(n=n)
+      sim1[,paste('t', nvisits, sep = '')] <-
+        sapply(1:n, function(i) next_event_time(truetime[i,1], dependent.visit, poisson_incr[i]))
+    }
+  }
+  # Sort visits in ascending order
+  sim1[,paste('t',1:nvisits, sep='')]<-
+    t(apply(sim1[,paste('t',1:nvisits, sep='')], 1, sort, na.last=T))
 
   # Make visits after end of followup missing
   sim1[,paste('t',1:nvisits,sep ='')][sim1[,paste('t',1:nvisits,sep ='')]>sim1$dtime]<-NA

@@ -21,6 +21,7 @@ simdat(
   visit.rate = NULL,
   renew.param = NULL,
   visit.postprog = 1,
+  dependent.visit = NULL,
   seed = NULL
 )
 }
@@ -92,8 +93,17 @@ should be non-null If \code{renew.param} is non-null,  visits will be generated
 according to a Weibull renewal visit process with shape and scale parameters equal to
 the first and second entries of \code{renew.param}.}
 
-\item{visit.postprog}{if equal to 0, that once illness is observed at a visit,
-no more visits occur for that individual. The default is 1.}
+\item{visit.postprog}{if equal to 0, visits stop once illness is observed at a visit.
+If equal to 1, visits continue as normal. The default is 1.}
+
+\item{dependent.visit}{If \code{dependent.visit} is non-null, an extra visit is
+added following an individual's first transition to state 2. If \code{dependent.visit} is
+a vector, the time from the transition to state 2 until the visit is generated
+from a truncated normal distribution with mean, standard deviation given by the
+first and second elements of the vector, respectively.
+If \code{dependent.visit} is a function, the  time from the transition to state
+2 until the visit will be generated according to a Poisson process with rate
+function \code{visit.rate} as a function of time.}
 
 \item{seed}{If \code{seed} is specified, \code{set.seed(seed)} will be run before
 generating the data, so the data can be reproduced.}
