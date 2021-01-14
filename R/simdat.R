@@ -233,14 +233,25 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
   sim1[,paste('t',1:nvisits,sep ='')][sim1[,paste('t',1:nvisits,sep ='')]>sim1$dtime]<-NA
 
   # Record current state at each visit
-  sim1[,paste('x',1:nvisits, sep='')] <-NA
-  for (i in 1:n){
-    truei<-stepfun(truetime[i,], c(1, truestate[i,]))
-    sim1[i,paste('x',1:nvisits, sep='')] <-truei(sim1[i,paste('t',1:nvisits, sep='')] )
-  }
   # Record the first time state 2 was observed (observed progression time) and the last time state 1 observed before the first time state 2 was observed
-  sim1$state2obs<-sapply(1:n, function(i) min(c(Inf, sim1[i,paste('t',1:nvisits,sep ='')][sim1[i,paste('x',1:nvisits,sep ='')]==2]), na.rm = T))
-  sim1$laststate1<-sapply(1:n, function(i) max(c(0, sim1[i,paste('t',1:nvisits,sep ='')][sim1[i,paste('x',1:nvisits,sep ='')]==1 & sim1[i,paste('t',1:nvisits,sep ='')]<sim1$state2obs[i]]), na.rm = T))
+  sim1[,paste('x',1:nvisits, sep='')] <-NA
+  if (is.null(scale21)){
+    sim1$state2obs <- Inf
+    sim1$laststate1 <- 0
+    for (j in 1:nvisits) {
+      sim1[,paste('x',j, sep='')]<-ifelse(sim1[,paste('t',j, sep='')]< sim1$one_to_two,1,2)
+      sim1$state2obs <- ifelse(is.infinite(sim1$state2obs) & !is.na(sim1[,paste('x',j, sep='')]) & sim1[,paste('x',j, sep='')]==2, sim1[,paste('t',j, sep='')], sim1$state2obs)
+      sim1$laststate1 <- ifelse(!is.na(sim1[,paste('x',j, sep='')]) &sim1[,paste('x',j, sep='')]==1, sim1[,paste('t',j, sep='')], sim1$laststate1)
+    }
+  }
+  else{
+    for (i in 1:n){
+      truei<-stepfun(truetime[i,], c(1, truestate[i,]))
+      sim1[i,paste('x',1:nvisits, sep='')] <-truei(sim1[i,paste('t',1:nvisits, sep='')] )
+      sim1$state2obs[i] <- min(c(Inf, sim1[i,paste('t',1:nvisits,sep ='')][sim1[i,paste('x',1:nvisits,sep ='')]==2]), na.rm = T)
+      sim1$laststate1[i] <-max(c(0, sim1[i,paste('t',1:nvisits,sep ='')][sim1[i,paste('x',1:nvisits,sep ='')]==1 & sim1[i,paste('t',1:nvisits,sep ='')]<sim1$state2obs[i]]), na.rm = T)
+    }
+  }
 
   # If visit.postprog=0, remove all visits after progression first observed
   if (visit.postprog == 0){
