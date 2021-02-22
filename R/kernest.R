@@ -64,6 +64,7 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
   if (!is.null(prob.times)) if (all.equal(sort(prob.times),prob.times)!=T) stop('prob.times must be in ascending order.')
   if (!is.null(mu.times)) if (all.equal(sort(mu.times),mu.times)!=T) stop('mu.times must be in ascending order.')
   if (!(boundary %in% c('boundary.kernel','interpolation'))) stop('The only allowable entries for boundary are "boundary.kernel" and "interpolation".')
+  if(bandwidth>tau2/2) stop('The bandwidth must be less than or equal to tau2/2.')
 
   if (kfun == 'epanechnikov') {
     Kq <<- function(x, q) {

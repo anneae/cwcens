@@ -1,9 +1,9 @@
 K.unif<-function(u,x,b){
-  # Implements the kernel method with the boundary kernel of Muller 1991 on the LEFT ONLY.
-  #    if (b<=x & x<=(1-b)) return(K1((x-u)/b))
-  if (b<=x) return(K1((x-u)/b))
+  # Implements the kernel method with the boundary kernel of Muller 1991 on the LEFT AND RIGHT.
+  if (b<=x & x<=(1-b)) return(K1((x-u)/b))
+  #if (b<=x) return(K1((x-u)/b))
   if (b>x) return(Kq((x-u)/b, x/b))
-  #    if (x>(1-b)) return(Kq(-(x-u)/b, (1-x)/b))
+  if (x>(1-b)) return(Kq(-(x-u)/b, (1-x)/b))
 }
 
 lambda <- function(v,h,v.all,N,tau2)
@@ -62,24 +62,79 @@ f2 <- function(v,h,v.all,y.all,N,tau2, boundary, Left, Right, Value)
 }
 
 int_f2<-function(lower, upper, bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value, warn = T){
-  if (boundary =='interpolation' | lower>bandwidth|
-      lambda(lower, bandwidth, V.all, N,tau2)>=0|lambda(upper, bandwidth, V.all, N,tau2)<0){
-     myint <- try(pracma::integral(f2, xmin =lower, xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
-                         tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
-                         reltol = 1e-5), silent = T)
-     if (inherits(myint, "try-error")){
-       brkpt <- optimize(function(x) lambda(x, bandwidth, V.all, N, tau2),
-                       interval=c(lower, bandwidth), maximum=F)$minimum
-       myint <- int_w_discon(lower, brkpt, bandwidth, V.all,Y.all,N,tau2,
-                    boundary, Left, Right, Value, warn = warn)+
-                int_w_discon(brkpt, upper, bandwidth, V.all,Y.all,N,tau2,
-                    boundary, Left, Right, Value, warn = warn)
-     }
+  ##### Don't need any boundary correction on the RHS
+  if (upper < tau2 - bandwidth & (boundary =='interpolation' | lower>bandwidth|
+                                  lambda(lower, bandwidth, V.all, N,tau2)>=0|lambda(upper, bandwidth, V.all, N,tau2)<0)){
+    myint <- try(pracma::integral(f2, xmin =lower, xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
+                                  reltol = 1e-5), silent = T)
+    if (inherits(myint, "try-error")){
+      brkpt <- optimize(function(x) lambda(x, bandwidth, V.all, N, tau2),
+                        interval=c(lower, bandwidth), maximum=F)$minimum
+      myint <- int_w_discon(lower, brkpt, bandwidth, V.all,Y.all,N,tau2,
+                            boundary, Left, Right, Value, warn = warn)+
+        int_w_discon(brkpt, upper, bandwidth, V.all,Y.all,N,tau2,
+                     boundary, Left, Right, Value, warn = warn)
+    }
     return(myint)
   }
-  return(int_w_discon(lower, upper, bandwidth, V.all,Y.all,N,tau2,
-                      boundary, Left, Right, Value, warn = warn))
+  if (upper < tau2 - bandwidth)   return(int_w_discon(lower, upper, bandwidth, V.all,Y.all,N,tau2,
+                                                      boundary, Left, Right, Value, warn = warn))
+  ##### Don't need boundary correction on the LHS
+  if (lower>bandwidth & (lambda(upper, bandwidth, V.all, N,tau2)>=0 |lambda(lower, bandwidth, V.all, N,tau2)<0 )){
+    myint <- try(pracma::integral(f2, xmin =lower, xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
+                                  reltol = 1e-5), silent = T)
+    if (inherits(myint, "try-error")){
+      brkpt <- optimize(function(x) lambda(x, bandwidth, V.all, N, tau2),
+                        interval=c(tau2-bandwidth, upper), maximum=F)$minimum
+      myint <- int_w_discon(lower, brkpt, bandwidth, V.all,Y.all,N,tau2,
+                            boundary, Left, Right, Value, warn = warn)+
+        int_w_discon(brkpt, upper, bandwidth, V.all,Y.all,N,tau2,
+                     boundary, Left, Right, Value, warn = warn)
+    }
+    return(myint)
+  }
+  if (lower>bandwidth)   return(int_w_discon(lower, upper, bandwidth, V.all,Y.all,N,tau2,
+                                                      boundary, Left, Right, Value, warn = warn))
+  ####### If you need boundary correction on both sides, break into two pieces
+  # First, the piece from lower to tau2/2 which needs no correction on RHS
+  if (boundary =='interpolation' | lambda(lower, bandwidth, V.all, N,tau2)>=0 | lambda(tau2/2, bandwidth, V.all, N,tau2)<0){
+    myint <- try(pracma::integral(f2, xmin =lower, xmax = tau2/2, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
+                                  reltol = 1e-5), silent = T)
+    if (inherits(myint, "try-error")){
+      brkpt <- optimize(function(x) lambda(x, bandwidth, V.all, N, tau2),
+                        interval=c(lower, tau2/2), maximum=F)$minimum
+      myint <- int_w_discon(lower, brkpt, bandwidth, V.all,Y.all,N,tau2,
+                            boundary, Left, Right, Value, warn = warn)+
+        int_w_discon(brkpt, tau2/2, bandwidth, V.all,Y.all,N,tau2,
+                     boundary, Left, Right, Value, warn = warn)
+    }
+    part1 <- myint
+  }
+  else part1 <- int_w_discon(lower, tau2/2, bandwidth, V.all,Y.all,N,tau2,
+                                                      boundary, Left, Right, Value, warn = warn)
+  # Next, the piece from tau2/2 to upper which needs no correction on RHS
+  if (lambda(upper, bandwidth, V.all, N,tau2)>=0 | lambda(tau2/2, bandwidth, V.all, N,tau2)<0){
+    myint <- try(pracma::integral(f2, xmin =tau2/2, xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
+                                  reltol = 1e-5), silent = T)
+    if (inherits(myint, "try-error")){
+      brkpt <- optimize(function(x) lambda(x, bandwidth, V.all, N, tau2),
+                        interval=c(tau2/2, upper), maximum=F)$minimum
+      myint <- int_w_discon(tau2/2, brkpt, bandwidth, V.all,Y.all,N,tau2,
+                            boundary, Left, Right, Value, warn = warn)+
+        int_w_discon(brkpt, upper, bandwidth, V.all,Y.all,N,tau2,
+                     boundary, Left, Right, Value, warn = warn)
+    }
+    part2 <- myint
+  }
+  else part2 <- int_w_discon(tau2/2, upper, bandwidth, V.all,Y.all,N,tau2,
+                             boundary, Left, Right, Value, warn = warn)
+  return(part1 + part2)
 }
+
 
 int_w_discon<-function(lower, upper, bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value, warn = T){
   dis<-uniroot(function (x) lambda(x, bandwidth, V.all, N,tau2),
@@ -127,4 +182,25 @@ mLeaveone <- function(v,id,h,v.all,y.all,id.all, tau2)
   }
   m.v[is.na(m.v)] <- 0
   m.v
+}
+
+#### Old functions BEFORE I updated them to incorporate a boundary correction on the RHS
+int_f2_old<-function(lower, upper, bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value, warn = T){
+  if (boundary =='interpolation' | lower>bandwidth|
+      lambda(lower, bandwidth, V.all, N,tau2)>=0|lambda(upper, bandwidth, V.all, N,tau2)<0){
+    myint <- try(pracma::integral(f2, xmin =lower, xmax = upper, v.all = V.all, y.all = Y.all, h = bandwidth, N = N,
+                                  tau2 = tau2, boundary = boundary, Left=Left, Right= Right, Value=Value,
+                                  reltol = 1e-5), silent = T)
+    if (inherits(myint, "try-error")){
+      brkpt <- optimize(function(x) lambda(x, bandwidth, V.all, N, tau2),
+                        interval=c(lower, bandwidth), maximum=F)$minimum
+      myint <- int_w_discon(lower, brkpt, bandwidth, V.all,Y.all,N,tau2,
+                            boundary, Left, Right, Value, warn = warn)+
+        int_w_discon(brkpt, upper, bandwidth, V.all,Y.all,N,tau2,
+                     boundary, Left, Right, Value, warn = warn)
+    }
+    return(myint)
+  }
+  return(int_w_discon(lower, upper, bandwidth, V.all,Y.all,N,tau2,
+                      boundary, Left, Right, Value, warn = warn))
 }
