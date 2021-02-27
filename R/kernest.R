@@ -80,19 +80,19 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
   }
   else if (kfun == 'uniform') {
     Kq <<- function(x, q) {
-      (1+q)^(-1)*(1+3*((1-q)/(1+q))^2+6*(1-q)*(1+q)^(-2)*x)
+      (1+q)^(-1)*(1+3*((1-q)/(1+q))^2+6*(1-q)*(1+q)^(-2)*x)*(abs(x)<1)
     }
     K1 <- function(u) 0.5* (abs(u) < 1)
   }
   else if (kfun == 'triweight'){
     Kq <<- function(x, q) {
-      140*(1+x)^3*(q-x)^3*(1+q)^(-7)*(1+9*((1-q)/(1+q))^2+18*(1-q)*((1+q)^(-2))*x)
+      140*(1+x)^3*(q-x)^3*(1+q)^(-7)*(1+9*((1-q)/(1+q))^2+18*(1-q)*((1+q)^(-2))*x)*(abs(x)<1)
     }
     K1 <<- function(u) (35/32)*(1-u^2)^3 * (abs(u) < 1)
   }
   else if (kfun == 'biweight'){
     Kq <<- function(x, q) {
-      30*(1+x)^2*(q-x)^2*(1+q)^(-5)*(1+7*((1-q)/(1+q))^2+14*(1-q)*((1+q)^(-2))*x)
+      30*(1+x)^2*(q-x)^2*(1+q)^(-5)*(1+7*((1-q)/(1+q))^2+14*(1-q)*((1+q)^(-2))*x)*(abs(x)<1)
     }
     K1 <<- function(u) (15/16)*(1-u^2)^2 * (abs(u) < 1)
   }
