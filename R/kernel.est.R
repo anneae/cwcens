@@ -28,7 +28,7 @@
 #' @param kfun specifies the kernel function to be used for estimation. The default
 #' is \code{epanechnikov}; other possible values are \code{triweight}, \code{biweight} and \code{uniform}
 #' @param std.err If \code{std.err= 'asymptotic'}  or \code{'boot'}, the function
-#' calculates the standard error estimates and 95% confidence intervals for each
+#' calculates the standard error estimates and 95\% confidence intervals for each
 #' quantity using the asymptotic or bootstrap estimators. (\code{std.err= 'none'} is the default.)
 #' @param B the number of bootstrap samples; the default value of 50 for the sake
 #' of computation time, but we recommend increasing it
@@ -37,15 +37,17 @@
 #' @param scale a scaling factor for the restricted mean time in state output. For example,
 #' if times are in days and you want the output to reflect restricted mean years in state,
 #' set \code{scale = 365.25}.
+#' @param weights a vector of weights with length equal to the number of rows in \code{dat}.
+#' The default is to assign each observation a weight of one.
 #'
-#' @return A list with up to two elements, \code{prob.info}  if \code{prob.times} was non-null,
-#' and \code{mu.info} if \code{mu.times} was non-null. \code{prob.info} contains
+#' @return A list with up to two elements: an element called \code{prob.info}  if \code{prob.times} was non-null,
+#' and an element called \code{mu.info} if \code{mu.times} was non-null. \code{prob.info} contains
 #'  probability in state estimates and \code{mu.info} contains restricted mean time
 #'  in state estimates.
 #'  The columns in \code{prob.info} are \code{t, p1, p2, p3} for time and
 #'  probability in state 1, 2 and 3, respectively. If \code{std.err ='boot'} or
 #'  \code{'asymptotic'}, additional columns are added with standard error estimates
-#'  and lower and upper limits of the 95% confidence interval for each estimate.
+#'  and lower and upper limits of the 95\% confidence interval for each estimate.
 #'  The columns in \code{mu.info} are analogous.
 #' @export
 #'
@@ -58,13 +60,15 @@
 kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
                        boundary = 'boundary.kernel', kfun='epanechnikov',
                        std.err='none', B=50, boot.seed = NULL,
-                       scale=1){
-
+                       scale=1, weights=NULL){
 
   if (!is.null(prob.times)) if (all.equal(sort(prob.times),prob.times)!=T) stop('prob.times must be in ascending order.')
   if (!is.null(mu.times)) if (all.equal(sort(mu.times),mu.times)!=T) stop('mu.times must be in ascending order.')
   if (!(boundary %in% c('boundary.kernel','interpolation'))) stop('The only allowable entries for boundary are "boundary.kernel" and "interpolation".')
-  if(bandwidth>tau2/2) stop('The bandwidth must be less than or equal to tau2/2.')
+  if (bandwidth>tau2/2) stop('The bandwidth must be less than or equal to tau2/2.')
+  if (!is.null(weights) & !(length(weights)==nrow(dat))) stop('The number of weights must be equal to the number of rows in dat.')
+
+  if (is.null(weights)) weights<-rep(1, nrow(dat))
 
   if (kfun == 'epanechnikov') {
     Kq <<- function(x, q) {
@@ -105,10 +109,12 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
   V.all <- c(t(as.matrix(dat[,paste('t',1:nvisits, sep='')])))
   Y.all <- as.numeric(c(t(as.matrix(dat[,paste('x',1:nvisits, sep='')])))==1)
   ID.all <- rep(1:nrow(dat), each = nvisits)
+  Weights.all <- rep(weights, each = nvisits)
   missing <- is.na(V.all)
   V.all <- V.all[!missing]
   Y.all <- Y.all[!missing]
   ID.all <- ID.all[!missing]
+  Weights.all <- Weights.all[!missing]
   N<-length(X)
 
   #####################################################
@@ -124,7 +130,8 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
   #####################################################
   if (length(prob.times)>0){
     prob.matrix<-matrix(NA, nrow = length(prob.times), ncol = 3)
-    prob.matrix[,1]<-f2(prob.times, v.all = V.all, y.all = Y.all, h = bandwidth, N = N, tau2 = tau2, boundary = boundary,
+    prob.matrix[,1]<-f2(prob.times, v.all = V.all, y.all = Y.all, weights.all = Weights.all,
+                        h = bandwidth, N = N, tau2 = tau2, boundary = boundary,
                         Left=Left, Right= Right, Value=Value)
     prob.matrix[,3]<-1-sapply(1:length(prob.times), function (x)
       Sd(prob.times[x], Value, Left, Right))
@@ -134,7 +141,8 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
   if (length(mu.times)>0){
     rm.matrix<-matrix(NA, nrow = length(mu.times), ncol = 3)
     mu.times2<-c(0, mu.times)
-    rm.diff<-sapply(1:length(mu.times), function(x) int_f2(mu.times2[x], mu.times2[x+1],bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value))
+    rm.diff<-sapply(1:length(mu.times), function(x) int_f2(mu.times2[x], mu.times2[x+1],bandwidth, V.all,Y.all,Weights.all,
+                                                           N,tau2, boundary, Left, Right, Value))
     rm.matrix[,1]<-cumsum(rm.diff)/scale
     rm.matrix[,3]<-mu.times/scale-sapply(1:length(mu.times), function(i){
       if (mu.times[i]<min(X[E==1])) mu.times[i]/scale
@@ -157,9 +165,9 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
     #####################################################
     # generate longitudinal data
     #####################################################
-    xi.all <- xi(V.all,bandwidth, V.all, Y.all, N, tau2 = tau2)
-    xi.all2 <- xi(V.all,bandwidth, V.all, 1-Y.all, N, tau2 = tau2)
-    lambda.all <- lambda(V.all,bandwidth, V.all, N, tau2 = tau2)
+    xi.all <- xi(V.all,bandwidth, V.all, Y.all, Weights.all, N, tau2 = tau2)
+    xi.all2 <- xi(V.all,bandwidth, V.all, 1-Y.all, Weights.all, N, tau2 = tau2)
+    lambda.all <- lambda(V.all,bandwidth, V.all, Weights.all, N, tau2 = tau2)
     sd.all <- xi.all
     for(i in 1:length(sd.all))
     {
@@ -178,8 +186,8 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
     for(i in 1:N)
     {
       tt <- X[i]
-      mu2.all[i] <- sum(sd.all[V.all<tt]*Y.all[V.all<tt]/lambda.all[V.all<tt])/N
-      mu2.2.all[i] <- sum(sd.all[V.all<tt]*(1-Y.all)[V.all<tt]/lambda.all[V.all<tt])/N
+      mu2.all[i] <- sum(Weights.all*sd.all[V.all<tt]*Y.all[V.all<tt]/lambda.all[V.all<tt])/N
+      mu2.2.all[i] <- sum(Weights.all*sd.all[V.all<tt]*(1-Y.all)[V.all<tt]/lambda.all[V.all<tt])/N
     }
     mu2.3.all<-mu.times-sapply(1:length(X), function(i)
       summary(fit, rmean =X[i], extend = T)$table[5])
@@ -200,20 +208,21 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
       lambda.i <- lambda.all[ID.all == i]
       xi.i <- xi.all[ID.all == i]
       xi.i2<-xi.all2[ID.all == i]
+      weight.i<-weights[ID == i]
 
       if (length(mu.times)>0){
         for (j in 1:length(mu.times)){
           # Variance of RMTIS1
           Phi1.1[i,j] <- (sum(1/(sx2.all[X<X[i] & X<mu.times[j] & E == TRUE])^2)/N - (1/sx2.all[i])*(X[i]<mu.times[j] & E[i] == 1))*rm.matrix[j,1]*scale +
             (mu2.all[i]/sx2.all[i])*(X[i]<mu.times[j] & E[i] == 1) - sum((mu2.all/(sx2.all)^2)[X<X[i] & X<mu.times[j] & E == TRUE])/N
-          Phi2.1[i,j] <- sum((sd.i*Y.i/lambda.i)[V.i<mu.times[j]]) #- out
-          Phi3.1[i,j] <- sum((sd.i*xi.i/lambda.i^2)[V.i<mu.times[j]]) #- out
+          Phi2.1[i,j] <- weight.i*sum((sd.i*Y.i/lambda.i)[V.i<mu.times[j]]) #- out
+          Phi3.1[i,j] <- weight.i*sum((sd.i*xi.i/lambda.i^2)[V.i<mu.times[j]]) #- out
 
           # Variance of RMTIS2
           Phi1.2[i,j] <- (sum(1/(sx2.all[X<X[i] & X<mu.times[j] & E == TRUE])^2)/N - (1/sx2.all[i])*(X[i]<mu.times[j] & E[i] == 1))*rm.matrix[j,2]*scale +
             (mu2.2.all[i]/sx2.all[i])*(X[i]<mu.times[j] & E[i] == 1) - sum((mu2.2.all/(sx2.all)^2)[X<X[i] & X<mu.times[j] & E == TRUE])/N
-          Phi2.2[i,j] <- sum((sd.i*(1-Y.i)/lambda.i)[V.i<mu.times[j]]) #- out
-          Phi3.2[i,j] <- sum((sd.i*(xi.i2)/lambda.i^2)[V.i<mu.times[j]]) #- out
+          Phi2.2[i,j] <- weight.i*sum((sd.i*(1-Y.i)/lambda.i)[V.i<mu.times[j]]) #- out
+          Phi3.2[i,j] <- weight.i*sum((sd.i*(xi.i2)/lambda.i^2)[V.i<mu.times[j]]) #- out
 
           #Variance of RMTIS3
           Phi3[i,j] <- (sum(1/(sx2.all[X<X[i] & X<mu.times[j] & E == TRUE])^2)/N - (1/sx2.all[i])*(X[i]<mu.times[j] & E[i] == 1))*rm.matrix[j,3]*scale +
@@ -235,7 +244,8 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
 
     if (length(prob.times)>0){
       # variance of sqrt(n)*(prob in state 1). Same as state 2.
-      var1 <- (3/5*((1-prob.matrix[,3])*prob.matrix[,1]-prob.matrix[,1]^2)/lambda(prob.times,bandwidth, V.all, N, tau2 = tau2))/bandwidth
+      K22 <- 3/5*(kfun == 'epanechnikov') + 1/2*(kfun == 'uniform') + 350/429*(kfun == 'triweight') + 5/7*(kfun == 'biweight')
+      var1 <- (K22*((1-prob.matrix[,3])*prob.matrix[,1]-prob.matrix[,1]^2)/lambda(prob.times,bandwidth, V.all, Weights.all, N, tau2 = tau2))/bandwidth
       var1[prob.matrix[,1]==0]<-0
       prob.matrix<-cbind(prob.matrix, sqrt(var1)/sqrt(N), sqrt(var1)/sqrt(N), apply(phi3, 2, sd)/sqrt(N))
       if (length(prob.times)>1) prob.matrix<-cbind(prob.times/scale, prob.matrix, prob.matrix[,1:3]-1.96*prob.matrix[,4:6], prob.matrix[,1:3]+1.96*prob.matrix[,4:6])
@@ -268,10 +278,12 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
       V.all <- c(t(as.matrix(dat.bs[,paste('t',1:nvisits, sep='')])))
       Y.all <- as.numeric(c(t(as.matrix(dat.bs[,paste('x',1:nvisits, sep='')])))==1)
       ID.all <- rep(1:nrow(dat.bs), each = nvisits)
+      Weights.all <- rep(weights, each = nvisits)
       missing <- is.na(V.all)
       V.all <- V.all[!missing]
       Y.all <- Y.all[!missing]
       ID.all <- ID.all[!missing]
+      Weights.all <- Weights.all[!missing]
       N<-length(X)
 
       #####################################################
@@ -287,7 +299,7 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
       #####################################################
       if (length(prob.times)>0){
         prob.matrix.boot<-matrix(NA, nrow = length(prob.times), ncol = 3)
-        prob.matrix.boot[,1]<-f2(prob.times, v.all = V.all, y.all = Y.all, h = bandwidth, N = N, tau2 = tau2, boundary = boundary,
+        prob.matrix.boot[,1]<-f2(prob.times, v.all = V.all, y.all = Y.all, weights.all = Weights.all, h = bandwidth, N = N, tau2 = tau2, boundary = boundary,
                             Left=Left, Right= Right, Value=Value)
         prob.matrix.boot[,3]<-1-sapply(1:length(prob.times), function (x)
           Sd(prob.times[x], Value, Left, Right))
@@ -297,7 +309,7 @@ kernel.est <- function(dat, bandwidth, tau2, prob.times=NULL, mu.times=NULL,
       if (length(mu.times)>0){
         rm.matrix.boot<-matrix(NA, nrow = length(mu.times), ncol = 3)
         mu.times2<-c(0, mu.times)
-        rm.diff<-sapply(1:length(mu.times), function(x) int_f2(mu.times2[x], mu.times2[x+1],bandwidth, V.all,Y.all,N,tau2, boundary, Left, Right, Value, warn = F))
+        rm.diff<-sapply(1:length(mu.times), function(x) int_f2(mu.times2[x], mu.times2[x+1],bandwidth, V.all,Y.all,Weights.all,N,tau2, boundary, Left, Right, Value, warn = F))
         rm.matrix.boot[,1]<-cumsum(rm.diff)/scale
         rm.matrix.boot[,3]<-mu.times/scale-sapply(1:length(mu.times), function(i){
           if (mu.times[i]<min(X[E==1])) mu.times[i]/scale
