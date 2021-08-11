@@ -40,6 +40,9 @@
 #' is a vector, right censoring will occur according to a uniform distribution on
 #' the interval defined by the vector. If \code{vital.lfu} is a scalar, all observations
 #' will be right-censored at \code{vital.lfu}.
+#' @param dropout.rate controls dropout. Default is \code{NULL}, meaning no dropout; all right
+#' censoring arises via the \code{vital.lfu} parameter. If \code{dropout.rate} is non-null,
+#' individuals are subject to dropout according to an exponential distribution with rate \code{dropout.rate}.
 #' @param visit.schedule exactly one of \code{visit.schedule}, \code{visit.rate} and \code{renew.param}
 #' should be non-null If \code{visit.schedule} is non-null, visits will be generated
 #' according to a truncated normal distribution around each time in \code{visit.schedule},
@@ -96,6 +99,7 @@
 simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
                  shape12=1, shape13=1, shape23=1,
                  scale21=NULL, shape21=1, vital.lfu=c(30.4*36, 30.4*48),
+                 dropout.rate = NULL,
                  visit.schedule = 30.4*c(6, 12, 18, 24, 30, 36, 42, 48),
                  scatter.sd=10, missing.rate = 0,
                  visit.rate=NULL, renew.param = NULL,
@@ -153,6 +157,8 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
   # Right censoring for death
   if (length(vital.lfu)==1) sim1$C_D <- vital.lfu
   else if (length(vital.lfu==2)) sim1$C_D <- runif(n, min = vital.lfu[1], max = vital.lfu[2])
+  # Add dropout, if applicable
+  if (!is.null(dropout.rate)) sim1$C_D <- pmin(sim1$C_D, rexp(n, dropout.rate))
   sim1$dstatus<- as.numeric(sim1$dtime<sim1$C_D)
   sim1$dtime[sim1$dstatus == 0] <- sim1$C_D[sim1$dstatus == 0]
   # Helper function to generate events from a poisson process given the last event time,
@@ -261,7 +267,12 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
   # Delete variables that represent visits that never happened
   while(sum(!is.na(sim1[,paste('t',nvisits, sep='')]))==0){
     nvisits<-nvisits-1
-    if (nvisits == 0) stop('No visits ocurred; change parameters to get component-wise censored data.')
+    if (nvisits == 0) {
+      warning('No visits ocurred; change parameters to get component-wise censored data.')
+      sim1<-sim1[,c('dtime','dstatus','state2obs','laststate1')]
+      sim1$nvisits<-nvisits
+      return(sim1)
+    }
   }
   sim1<-sim1[,c('dtime','dstatus','state2obs','laststate1',
                 paste('t',1:nvisits, sep=''),paste('x',1:nvisits, sep=''))]

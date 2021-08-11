@@ -15,6 +15,7 @@ simdat(
   scale21 = NULL,
   shape21 = 1,
   vital.lfu = c(30.4 * 36, 30.4 * 48),
+  dropout.rate = NULL,
   visit.schedule = 30.4 * c(6, 12, 18, 24, 30, 36, 42, 48),
   scatter.sd = 10,
   missing.rate = 0,
@@ -68,6 +69,10 @@ Default is 1.}
 is a vector, right censoring will occur according to a uniform distribution on
 the interval defined by the vector. If \code{vital.lfu} is a scalar, all observations
 will be right-censored at \code{vital.lfu}.}
+
+\item{dropout.rate}{controls dropout. Default is \code{NULL}, meaning no dropout; all right
+censoring arises via the \code{vital.lfu} parameter. If \code{dropout.rate} is non-null,
+individuals are subject to dropout according to an exponential distribution with rate \code{dropout.rate}.}
 
 \item{visit.schedule}{exactly one of \code{visit.schedule}, \code{visit.rate} and \code{renew.param}
 should be non-null If \code{visit.schedule} is non-null, visits will be generated
