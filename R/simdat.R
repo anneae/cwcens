@@ -105,7 +105,7 @@ simdat<-function(n, scale12=1/.0008, scale13=1/.0002, scale23=1/.0016,
                  visit.rate=NULL, renew.param = NULL,
                  visit.postprog = 1, dependent.visit =NULL,
                  seed = NULL){
-  if (!is.function(visit.rate)+is.null(visit.schedule[1])+is.null(renew.param[1])!=2) stop('You must specify exactly one of visit.schedule, visit.rate and renew.param.')
+  if (!is.function(visit.rate)+is.null(visit.schedule[1])+is.null(renew.param[1])!=2) stop('You must specify exactly one of visit.schedule, visit.rate and renew.param. Ensure the others are set to NULL.')
   if (max(missing.rate)>0 & is.null(visit.schedule[1])) stop('missing.rate must be zero unless you are using the visit.schedule option.')
   if (!is.null(seed)) set.seed(seed)
 
